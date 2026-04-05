@@ -1,0 +1,34 @@
+name: SinglePlayerSleep
+version: ${project.version}
+main: com.mrsuffix.singleplayersleep.SinglePlayerSleep
+api-version: "1.21"
+authors: [mrsuffix]
+description: "Skip the night on a configurable condition. Ultra-optimized."
+softdepend: [PlaceholderAPI]
+
+commands:
+  sleep:
+    description: "Vote to sleep or trigger night skip"
+    usage: "/<command>"
+    permission: singleplayersleep.sleep
+  sps:
+    description: "SinglePlayerSleep admin command"
+    usage: "/<command> [reload|stats|afk|version|debug]"
+    permission: singleplayersleep.admin
+
+permissions:
+  singleplayersleep.sleep:
+    description: "Allows use of /sleep command"
+    default: true
+  singleplayersleep.admin:
+    description: "Allows /sps and bypass features"
+    default: op
+  singleplayersleep.bypasscooldown:
+    description: "Bypass sleep cooldown"
+    default: op
+  singleplayersleep.bypassafk:
+    description: "Never marked as AFK"
+    default: op
+  singleplayersleep.stats:
+    description: "View sleep statistics"
+    default: true

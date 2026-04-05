@@ -1,0 +1,93 @@
+# ════════════════════════════════════════════════════════════════════════════
+# SinglePlayerSleep v2.0.0 Configuration
+# ════════════════════════════════════════════════════════════════════════════
+
+# Sleep behavior settings
+sleep:
+  mode: "single" # "single" = one player triggers skip, "percentage" = X% of non-AFK players must sleep
+  percentage: 50 # Only used when mode is "percentage". Range 1-100.
+  delay-ticks: 100 # Ticks to wait after condition is met before skipping (20 ticks = 1 second)
+  cooldown-seconds: 60 # Seconds before another sleep event can start in the same world
+  clear-weather: true # Clear rain/thunder after night skip
+  auto-save: true # Call world.save() after night skip (async-safe)
+
+# AFK detection settings
+afk:
+  enabled: true # Enable AFK detection system
+  timeout-seconds: 300 # Players inactive this long are marked as AFK (300 = 5 minutes)
+  exclude-from-count: true # If true, AFK players don't count toward required sleepers
+  check-interval-ticks: 200 # How often (in ticks) the AFK checker runs to mark players (200 = 10 seconds)
+
+# Countdown settings
+countdown:
+  enabled: true # Enable countdown before night skip
+  duration-seconds: 5 # How long the countdown lasts before the skip fires
+  show-actionbar: true # Display countdown in the action bar
+  show-chat: false # Also send countdown message to chat (in addition to or instead of action bar)
+  sound-on-each-tick: true # Play a tick sound on each countdown second
+
+# Message settings (supports & color codes and {placeholders})
+messages:
+  prefix: "&8[&bSleep&8] " # Prefix for all messages
+  player-sleeping: "&e{player} &7is sleeping... &f({current}/{required})" # When a player enters bed
+  player-woke-up: "&e{player} &7woke up." # When a player leaves bed
+  night-skipped: "&aThe night has been skipped!" # When night is successfully skipped
+  countdown: "&bSkipping night in &f{seconds}&b..." # Countdown message
+  cooldown-active: "&cPlease wait &f{seconds}s &cbefore sleeping again." # When cooldown is active
+  afk-excluded: "&7(AFK players are excluded from the count)" # Info about AFK exclusion
+  vote-needed: "&7{current}/{required} players sleeping." # Vote progress in percentage mode
+  phantom-reset: "&7Phantom timers reset for all players." # When phantom timers are reset
+  no-permission: "&cYou don't have permission to do that." # Permission denied message
+  reload-success: "&aSinglePlayerSleep reloaded successfully." # Successful reload message
+  update-available: "&eSinglePlayerSleep update available: &f{version}" # Update notification
+  command-sleep-help: "&7Use this command to vote for skipping the night." # /sleep command help
+  wrong-world: "&cThis command cannot be used in this world." # Command used in disabled world
+  plugin-enabled: "&aSinglePlayerSleep v{version} enabled." # Plugin startup message
+  plugin-disabled: "&cSinglePlayerSleep disabled." # Plugin shutdown message
+
+# Visual and audio effects
+effects:
+  particles:
+    enabled: true # Enable particle effects
+    type: "CLOUD" # Bukkit Particle enum name
+    smart-scale: true # Reduce particle count based on online player count to prevent lag
+  sounds:
+    enabled: true # Enable sound effects
+    sleep-start: "ENTITY_PLAYER_SLEEP" # Sound when player starts sleeping
+    night-skip: "UI_TOAST_CHALLENGE_COMPLETE" # Sound when night is skipped
+    countdown-tick: "BLOCK_NOTE_BLOCK_HAT" # Sound for each countdown tick
+
+# World settings
+worlds:
+  enabled: # List of worlds where the plugin is active
+    - "world"
+  mode: "whitelist" # "whitelist" = only listed worlds active, "blacklist" = all worlds EXCEPT listed
+
+# Phantom prevention
+phantom:
+  reset-on-skip: true # Reset all online players' time-since-rest to 0 after night skip
+
+# Update checker
+update-checker:
+  enabled: true # Enable GitHub update checker
+  github-user: "mrsuffix" # GitHub username
+  github-repo: "SinglePlayerSleepV2" # GitHub repository name
+  notify-on-join: true # Notify ops when they join if update is available
+  check-interval-hours: 24 # How often to check for updates (in hours)
+
+# Command settings
+command:
+  sleep-command-name: "sleep" # Base name of the /sleep command (requires server restart to change)
+  sleep-aliases: # Additional aliases for the /sleep command
+    - "goodnight"
+    - "slp"
+
+# Statistics tracking
+stats:
+  enabled: true # Enable statistics tracking
+  persist: true # Save stats to stats.yml on disk
+  track-per-player: true # Track individual player statistics
+
+# Debug settings
+debug:
+  enabled: false # Enable debug logging

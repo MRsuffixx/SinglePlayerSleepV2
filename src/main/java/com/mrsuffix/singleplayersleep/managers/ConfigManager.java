@@ -1,8 +1,10 @@
 package com.mrsuffix.singleplayersleep.managers;
 
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
+import com.mrsuffix.singleplayersleep.core.SleepRule;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.*;
@@ -17,11 +19,18 @@ public class ConfigManager {
     private int cooldownSeconds;
     private boolean clearWeather;
     private boolean autoSave;
+    private List<SleepRule> dynamicRules;
+    private boolean weatherChangeEnabled;
+    private boolean clearRain;
+    private boolean clearThunder;
     
     private boolean afkEnabled;
     private long afkTimeoutMs;
     private boolean excludeAfkFromCount;
     private int afkCheckIntervalTicks;
+    private boolean afkIndicatorEnabled;
+    private String afkIndicatorPrefix;
+    private String afkIndicatorSuffix;
     
     private boolean countdownEnabled;
     private int countdownDurationSeconds;
@@ -40,6 +49,9 @@ public class ConfigManager {
     
     private Set<String> enabledWorlds;
     private String worldsMode;
+    private WorldSettings defaultWorldSettings;
+    private final Map<String, WorldSettings> worldOverrides = new HashMap<>();
+    private final Map<String, Boolean> worldEnableOverrides = new HashMap<>();
     
     private boolean phantomResetOnSkip;
     
@@ -55,6 +67,7 @@ public class ConfigManager {
     private boolean statsEnabled;
     private boolean statsPersist;
     private boolean trackPerPlayer;
+    private int leaderboardRefreshSeconds;
     
     private boolean debugEnabled;
     
@@ -70,7 +83,19 @@ public class ConfigManager {
         sleepPercentage = plugin.getConfig().getDouble("sleep.percentage", 50.0);
         delayTicks = plugin.getConfig().getInt("sleep.delay-ticks", 100);
         cooldownSeconds = plugin.getConfig().getInt("sleep.cooldown-seconds", 60);
-        clearWeather = plugin.getConfig().getBoolean("sleep.clear-weather", true);
+        dynamicRules = parseRules(plugin.getConfig().getStringList("sleep.dynamic-rules"));
+        boolean legacyClearWeather = plugin.getConfig().getBoolean("sleep.clear-weather", true);
+        ConfigurationSection sleepWeather = plugin.getConfig().getConfigurationSection("sleep.weather");
+        if (sleepWeather != null) {
+            weatherChangeEnabled = sleepWeather.getBoolean("change-weather", legacyClearWeather);
+            clearRain = sleepWeather.getBoolean("clear-rain", true);
+            clearThunder = sleepWeather.getBoolean("clear-thunder", true);
+        } else {
+            weatherChangeEnabled = legacyClearWeather;
+            clearRain = legacyClearWeather;
+            clearThunder = legacyClearWeather;
+        }
+        clearWeather = weatherChangeEnabled;
         autoSave = plugin.getConfig().getBoolean("sleep.auto-save", true);
         
         afkEnabled = plugin.getConfig().getBoolean("afk.enabled", true);
@@ -78,6 +103,16 @@ public class ConfigManager {
         afkTimeoutMs = timeoutSeconds * 1000L;
         excludeAfkFromCount = plugin.getConfig().getBoolean("afk.exclude-from-count", true);
         afkCheckIntervalTicks = plugin.getConfig().getInt("afk.check-interval-ticks", 200);
+        ConfigurationSection afkIndicator = plugin.getConfig().getConfigurationSection("afk.indicator");
+        if (afkIndicator != null) {
+            afkIndicatorEnabled = afkIndicator.getBoolean("enabled", false);
+            afkIndicatorPrefix = afkIndicator.getString("list-prefix", "&7[AFK] ");
+            afkIndicatorSuffix = afkIndicator.getString("list-suffix", "");
+        } else {
+            afkIndicatorEnabled = false;
+            afkIndicatorPrefix = "&7[AFK] ";
+            afkIndicatorSuffix = "";
+        }
         
         countdownEnabled = plugin.getConfig().getBoolean("countdown.enabled", true);
         countdownDurationSeconds = plugin.getConfig().getInt("countdown.duration-seconds", 5);
@@ -100,6 +135,32 @@ public class ConfigManager {
         
         enabledWorlds = new HashSet<>(plugin.getConfig().getStringList("worlds.enabled"));
         worldsMode = plugin.getConfig().getString("worlds.mode", "whitelist");
+        WorldSettings.WeatherSettings baseWeather = new WorldSettings.WeatherSettings(
+                weatherChangeEnabled, clearRain, clearThunder);
+        ConfigurationSection worldDefaultsSection = plugin.getConfig().getConfigurationSection("worlds.defaults");
+        double defaultPercentage = readPercentage(worldDefaultsSection, sleepPercentage);
+        List<SleepRule> defaultRules = readRules(worldDefaultsSection, dynamicRules);
+        WorldSettings.WeatherSettings defaultWeather = readWeatherSettings(worldDefaultsSection, baseWeather);
+        defaultWorldSettings = new WorldSettings(true, defaultPercentage, defaultRules, defaultWeather);
+
+        worldOverrides.clear();
+        worldEnableOverrides.clear();
+        ConfigurationSection overridesSection = plugin.getConfig().getConfigurationSection("worlds.overrides");
+        if (overridesSection != null) {
+            for (String worldName : overridesSection.getKeys(false)) {
+                ConfigurationSection overrideSection = overridesSection.getConfigurationSection(worldName);
+                if (overrideSection == null) {
+                    continue;
+                }
+                if (overrideSection.contains("enabled")) {
+                    worldEnableOverrides.put(worldName, overrideSection.getBoolean("enabled"));
+                }
+                double overridePercentage = readPercentage(overrideSection, defaultWorldSettings.sleepPercentage());
+                List<SleepRule> overrideRules = readRules(overrideSection, defaultWorldSettings.dynamicRules());
+                WorldSettings.WeatherSettings overrideWeather = readWeatherSettings(overrideSection, defaultWorldSettings.weatherSettings());
+                worldOverrides.put(worldName, new WorldSettings(true, overridePercentage, overrideRules, overrideWeather));
+            }
+        }
         
         phantomResetOnSkip = plugin.getConfig().getBoolean("phantom.reset-on-skip", true);
         
@@ -115,6 +176,7 @@ public class ConfigManager {
         statsEnabled = plugin.getConfig().getBoolean("stats.enabled", true);
         statsPersist = plugin.getConfig().getBoolean("stats.persist", true);
         trackPerPlayer = plugin.getConfig().getBoolean("stats.track-per-player", true);
+        leaderboardRefreshSeconds = plugin.getConfig().getInt("stats.leaderboard-refresh-seconds", 300);
         
         debugEnabled = plugin.getConfig().getBoolean("debug.enabled", false);
         
@@ -163,6 +225,10 @@ public class ConfigManager {
     public String getSleepMode() {
         return sleepMode;
     }
+
+    public List<SleepRule> getDynamicRules() {
+        return dynamicRules == null ? List.of() : Collections.unmodifiableList(dynamicRules);
+    }
     
     public double getSleepPercentage() {
         return sleepPercentage;
@@ -178,6 +244,32 @@ public class ConfigManager {
     
     public boolean isClearWeather() {
         return clearWeather;
+    }
+
+    public WorldSettings getWorldSettings(World world) {
+        if (world == null) {
+            return defaultWorldSettings;
+        }
+        return getWorldSettings(world.getName());
+    }
+
+    public WorldSettings getWorldSettings(String worldName) {
+        if (worldName == null) {
+            return defaultWorldSettings;
+        }
+        boolean baseEnabled = isWorldEnabledByMode(worldName);
+        Boolean overrideEnabled = worldEnableOverrides.get(worldName);
+        boolean enabled = overrideEnabled != null ? overrideEnabled : baseEnabled;
+        WorldSettings override = worldOverrides.get(worldName);
+        WorldSettings base = defaultWorldSettings == null
+                ? new WorldSettings(true, sleepPercentage,
+                dynamicRules == null ? List.of() : dynamicRules,
+                new WorldSettings.WeatherSettings(weatherChangeEnabled, clearRain, clearThunder))
+                : defaultWorldSettings;
+        if (override == null) {
+            return new WorldSettings(enabled, base.sleepPercentage(), base.dynamicRules(), base.weatherSettings());
+        }
+        return new WorldSettings(enabled, override.sleepPercentage(), override.dynamicRules(), override.weatherSettings());
     }
     
     public boolean isAutoSave() {
@@ -198,6 +290,18 @@ public class ConfigManager {
     
     public int getAfkCheckIntervalTicks() {
         return afkCheckIntervalTicks;
+    }
+
+    public boolean isAfkIndicatorEnabled() {
+        return afkIndicatorEnabled;
+    }
+
+    public String getAfkIndicatorPrefix() {
+        return afkIndicatorPrefix;
+    }
+
+    public String getAfkIndicatorSuffix() {
+        return afkIndicatorSuffix;
     }
     
     public boolean isCountdownEnabled() {
@@ -299,6 +403,10 @@ public class ConfigManager {
     public boolean isTrackPerPlayer() {
         return trackPerPlayer;
     }
+
+    public int getLeaderboardRefreshSeconds() {
+        return leaderboardRefreshSeconds;
+    }
     
     public boolean isDebugEnabled() {
         return debugEnabled;
@@ -310,5 +418,70 @@ public class ConfigManager {
     
     public Map<String, String> getMessages() {
         return messages;
+    }
+
+    private List<SleepRule> parseRules(List<String> rawRules) {
+        List<SleepRule> parsed = new ArrayList<>();
+        if (rawRules == null) {
+            return parsed;
+        }
+        for (String raw : rawRules) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            SleepRule.parse(raw).ifPresentOrElse(parsed::add, () ->
+                    plugin.getLogger().warning("Invalid sleep rule: " + raw));
+        }
+        return parsed;
+    }
+
+    private double readPercentage(ConfigurationSection section, double fallback) {
+        if (section == null) {
+            return fallback;
+        }
+        if (section.contains("percentage")) {
+            return section.getDouble("percentage", fallback);
+        }
+        if (section.contains("sleep-percentage")) {
+            return section.getDouble("sleep-percentage", fallback);
+        }
+        return fallback;
+    }
+
+    private List<SleepRule> readRules(ConfigurationSection section, List<SleepRule> fallback) {
+        if (section == null) {
+            return fallback;
+        }
+        List<SleepRule> parsed = parseRules(section.getStringList("dynamic-rules"));
+        return parsed.isEmpty() ? fallback : parsed;
+    }
+
+    private WorldSettings.WeatherSettings readWeatherSettings(ConfigurationSection section,
+                                                             WorldSettings.WeatherSettings fallback) {
+        if (section == null) {
+            return fallback;
+        }
+        ConfigurationSection weather = section.getConfigurationSection("weather");
+        if (weather == null) {
+            return fallback;
+        }
+        boolean changeWeather = weather.getBoolean("change-weather", fallback.changeWeather());
+        boolean nextClearRain = weather.getBoolean("clear-rain", fallback.clearRain());
+        boolean nextClearThunder = weather.getBoolean("clear-thunder", fallback.clearThunder());
+        return new WorldSettings.WeatherSettings(changeWeather, nextClearRain, nextClearThunder);
+    }
+
+    private boolean isWorldEnabledByMode(String worldName) {
+        if (worldName == null) {
+            return false;
+        }
+        boolean inList = enabledWorlds.contains(worldName);
+        if ("whitelist".equalsIgnoreCase(worldsMode)) {
+            return inList;
+        } else if ("blacklist".equalsIgnoreCase(worldsMode)) {
+            return !inList;
+        }
+        plugin.getLogger().warning("Unknown worlds.mode '" + worldsMode + "' - disabling world: " + worldName);
+        return false;
     }
 }

@@ -4,6 +4,7 @@ import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import com.mrsuffix.singleplayersleep.managers.MessageUtil;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
+import com.mrsuffix.singleplayersleep.managers.WorldSettings;
 import com.mrsuffix.singleplayersleep.modules.*;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -104,6 +105,23 @@ public class SleepSession {
             MessageUtil.broadcastWorld(world, "player-woke-up", replacements);
         }
     }
+
+    public void refreshRequirement() {
+        int required = calculateRequired();
+        if (required <= 0) {
+            return;
+        }
+        if (isProcessing) {
+            if (sleepingPlayers.size() < required) {
+                cancelSkipTask();
+                isProcessing = false;
+            }
+            return;
+        }
+        if (sleepingPlayers.size() >= required) {
+            startCountdown();
+        }
+    }
     
     public void onPlayerLeave(Player player) {
         if (player == null) {
@@ -162,7 +180,8 @@ public class SleepSession {
         if (configManager.getSleepMode().equals("single")) {
             return 1;
         } else {
-            return (int) Math.max(1, Math.ceil(eligibleCount * configManager.getSleepPercentage() / 100.0));
+            double percentage = resolvePercentage(eligibleCount);
+            return (int) Math.max(1, Math.ceil(eligibleCount * percentage / 100.0));
         }
     }
     
@@ -203,9 +222,20 @@ public class SleepSession {
         
         world.setTime(0);
         
-        if (configManager.isClearWeather()) {
-            world.setStorm(false);
-            world.setThundering(false);
+        WorldSettings settings = configManager.getWorldSettings(world);
+        WorldSettings.WeatherSettings weatherSettings = settings == null ? null : settings.weatherSettings();
+        if (weatherSettings == null) {
+            if (configManager.isClearWeather()) {
+                world.setStorm(false);
+                world.setThundering(false);
+            }
+        } else if (weatherSettings.changeWeather()) {
+            if (weatherSettings.clearRain()) {
+                world.setStorm(false);
+            }
+            if (weatherSettings.clearThunder()) {
+                world.setThundering(false);
+            }
         }
         
         if (effectsModule != null) {
@@ -259,6 +289,23 @@ public class SleepSession {
     
     public Set<UUID> getSleepingPlayers() {
         return Collections.unmodifiableSet(new HashSet<>(sleepingPlayers));
+    }
+
+    private double resolvePercentage(long eligibleCount) {
+        WorldSettings settings = configManager.getWorldSettings(world);
+        double percentage = settings != null ? settings.sleepPercentage() : configManager.getSleepPercentage();
+        if (!configManager.getSleepMode().equalsIgnoreCase("percentage")) {
+            return percentage;
+        }
+        List<SleepRule> rules = settings != null ? settings.dynamicRules() : configManager.getDynamicRules();
+        if (rules != null) {
+            for (SleepRule rule : rules) {
+                if (rule != null && rule.matches(eligibleCount)) {
+                    return rule.percentage();
+                }
+            }
+        }
+        return percentage;
     }
     
     public boolean isProcessing() {

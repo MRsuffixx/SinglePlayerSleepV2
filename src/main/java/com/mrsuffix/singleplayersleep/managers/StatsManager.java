@@ -1,6 +1,7 @@
 package com.mrsuffix.singleplayersleep.managers;
 
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
+import com.mrsuffix.singleplayersleep.util.SafeRunner;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -10,12 +11,18 @@ import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 public class StatsManager {
+
+    public record LeaderboardEntry(UUID uuid, String name, int value) {
+    }
     
     public static class PlayerStats {
         public String name;
@@ -37,6 +44,9 @@ public class StatsManager {
     private final ConfigManager configManager;
     private final GlobalStats globalStats = new GlobalStats();
     private final Map<UUID, PlayerStats> playerData = new HashMap<>();
+    private volatile List<LeaderboardEntry> topSleepersCache = List.of();
+    private volatile List<LeaderboardEntry> topContributorsCache = List.of();
+    private volatile long lastLeaderboardRefresh = 0L;
     private File statsFile;
     private FileConfiguration statsConfig;
     
@@ -90,6 +100,58 @@ public class StatsManager {
     
     public GlobalStats getGlobalStats() {
         return globalStats;
+    }
+
+    public List<LeaderboardEntry> getTopSleepers(int limit) {
+        return limitList(topSleepersCache, limit);
+    }
+
+    public List<LeaderboardEntry> getTopContributors(int limit) {
+        return limitList(topContributorsCache, limit);
+    }
+
+    public long getLastLeaderboardRefresh() {
+        return lastLeaderboardRefresh;
+    }
+
+    public void scheduleLeaderboardRefresh() {
+        if (!configManager.isStatsEnabled() || !configManager.isTrackPerPlayer()) {
+            return;
+        }
+        long intervalTicks = Math.max(20L, configManager.getLeaderboardRefreshSeconds() * 20L);
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::refreshLeaderboards, intervalTicks, intervalTicks);
+        refreshLeaderboards();
+    }
+
+    public void refreshLeaderboards() {
+        if (!configManager.isStatsEnabled() || !configManager.isTrackPerPlayer()) {
+            topSleepersCache = List.of();
+            topContributorsCache = List.of();
+            return;
+        }
+        SafeRunner.runSync(plugin, () -> {
+            List<LeaderboardEntry> sleepersSnapshot = new ArrayList<>(playerData.size());
+            List<LeaderboardEntry> contributorsSnapshot = new ArrayList<>(playerData.size());
+            for (Map.Entry<UUID, PlayerStats> entry : playerData.entrySet()) {
+                PlayerStats stats = entry.getValue();
+                String name = stats == null || stats.name == null ? entry.getKey().toString() : stats.name;
+                int timesSlept = stats == null ? 0 : stats.timesSlept;
+                int contributed = stats == null ? 0 : stats.nightsContributedTo;
+                sleepersSnapshot.add(new LeaderboardEntry(entry.getKey(), name, timesSlept));
+                contributorsSnapshot.add(new LeaderboardEntry(entry.getKey(), name, contributed));
+            }
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                Comparator<LeaderboardEntry> comparator = Comparator
+                        .comparingInt(LeaderboardEntry::value)
+                        .reversed()
+                        .thenComparing(LeaderboardEntry::name, String.CASE_INSENSITIVE_ORDER);
+                sleepersSnapshot.sort(comparator);
+                contributorsSnapshot.sort(comparator);
+                topSleepersCache = List.copyOf(sleepersSnapshot);
+                topContributorsCache = List.copyOf(contributorsSnapshot);
+                lastLeaderboardRefresh = System.currentTimeMillis();
+            });
+        });
     }
     
     public void save() {
@@ -158,6 +220,7 @@ public class StatsManager {
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to load stats.yml: " + e.getMessage());
         }
+        refreshLeaderboards();
     }
     
     private void saveConfig() throws IOException {
@@ -169,6 +232,17 @@ public class StatsManager {
         globalStats.totalNightsSkipped = 0;
         globalStats.totalSleepEvents = 0;
         globalStats.lastSkipTimestamp = 0;
+        topSleepersCache = List.of();
+        topContributorsCache = List.of();
+        lastLeaderboardRefresh = 0L;
         load();
+    }
+
+    private List<LeaderboardEntry> limitList(List<LeaderboardEntry> source, int limit) {
+        if (source == null || source.isEmpty() || limit <= 0) {
+            return List.of();
+        }
+        int size = Math.min(limit, source.size());
+        return List.copyOf(source.subList(0, size));
     }
 }

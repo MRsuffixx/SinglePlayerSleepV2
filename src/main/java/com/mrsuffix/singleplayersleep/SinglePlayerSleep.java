@@ -56,6 +56,7 @@ public class SinglePlayerSleep extends JavaPlugin {
         countdownModule = new CountdownModule(this, configManager, effectsModule);
         statsManager = new StatsManager(this, configManager);
         statsManager.load();
+        statsManager.scheduleLeaderboardRefresh();
         
         sleepManager = new SleepManager(this, configManager, cooldownManager,
                 afkModule, effectsModule, phantomModule, countdownModule,
@@ -66,7 +67,7 @@ public class SinglePlayerSleep extends JavaPlugin {
         HandlerList.unregisterAll(this);
         PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(new SleepListener(sleepManager, afkModule), this);
-        pluginManager.registerEvents(new AfkListener(afkModule, updateModule), this);
+        pluginManager.registerEvents(new AfkListener(afkModule, updateModule, sleepManager), this);
         try {
             Class.forName("com.destroystokyo.paper.event.entity.PhantomPreSpawnEvent");
             pluginManager.registerEvents(new PhantomListener(configManager), this);

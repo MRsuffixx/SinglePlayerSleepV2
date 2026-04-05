@@ -17,19 +17,11 @@ public class WorldManager {
         if (world == null) {
             return false;
         }
-        
-        String worldName = world.getName();
-        String mode = configManager.getWorldsMode();
-        boolean inList = configManager.getEnabledWorlds().contains(worldName);
-        
-        if ("whitelist".equalsIgnoreCase(mode)) {
-            return inList;
-        } else if ("blacklist".equalsIgnoreCase(mode)) {
-            return !inList;
+        WorldSettings settings = configManager.getWorldSettings(world);
+        if (settings == null) {
+            return false;
         }
-
-        plugin.getLogger().warning("Unknown worlds.mode '" + mode + "' - disabling world: " + worldName);
-        return false;
+        return settings.enabled();
     }
     
     public void reload() {

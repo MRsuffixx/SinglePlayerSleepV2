@@ -89,12 +89,10 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 Player player = (Player) sender;
-                if (afkModule.isAfk(player)) {
-                    afkModule.recordActivity(player.getUniqueId());
-                    sender.sendMessage("§aYou are no longer AFK.");
-                } else {
-                    sender.sendMessage("§7You manually marked yourself as AFK.");
-                }
+                boolean nowAfk = afkModule.toggleManualAfk(player);
+                sender.sendMessage(nowAfk
+                        ? "§7You manually marked yourself as AFK."
+                        : "§aYou are no longer AFK.");
                 return true;
             case "version":
                 sender.sendMessage("§b=== SinglePlayerSleep v" + plugin.getDescription().getVersion() + " by mrsuffix ===");

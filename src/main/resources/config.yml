@@ -6,9 +6,14 @@
 sleep:
   mode: "single" # "single" = one player triggers skip, "percentage" = X% of non-AFK players must sleep
   percentage: 50 # Only used when mode is "percentage". Range 1-100.
+  dynamic-rules: [] # Optional dynamic rules like ["1-3:100", "4-10:50", "11+:40"]
   delay-ticks: 100 # Ticks to wait after condition is met before skipping (20 ticks = 1 second)
   cooldown-seconds: 60 # Seconds before another sleep event can start in the same world
-  clear-weather: true # Clear rain/thunder after night skip
+  clear-weather: true # Legacy: clears rain/thunder after night skip when sleep.weather not set
+  weather:
+    change-weather: true # If false, skip never changes weather
+    clear-rain: true # Clear rain after skip
+    clear-thunder: true # Clear thunder after skip
   auto-save: true # Call world.save() after night skip (async-safe)
 
 # AFK detection settings
@@ -17,6 +22,10 @@ afk:
   timeout-seconds: 300 # Players inactive this long are marked as AFK (300 = 5 minutes)
   exclude-from-count: true # If true, AFK players don't count toward required sleepers
   check-interval-ticks: 200 # How often (in ticks) the AFK checker runs to mark players (200 = 10 seconds)
+  indicator:
+    enabled: false # Show AFK status in player list name
+    list-prefix: "&7[AFK] "
+    list-suffix: ""
 
 # Countdown settings
 countdown:
@@ -62,6 +71,26 @@ worlds:
   enabled: # List of worlds where the plugin is active
     - "world"
   mode: "whitelist" # "whitelist" = only listed worlds active, "blacklist" = all worlds EXCEPT listed
+  defaults:
+    enabled: true
+    percentage: 50
+    dynamic-rules: []
+    weather:
+      change-weather: true
+      clear-rain: true
+      clear-thunder: true
+  overrides:
+    world_nether:
+      enabled: false
+    world:
+      percentage: 40
+      dynamic-rules:
+        - "1-2:100"
+        - "3-6:50"
+      weather:
+        change-weather: true
+        clear-rain: true
+        clear-thunder: false
 
 # Phantom prevention
 phantom:
@@ -87,6 +116,7 @@ stats:
   enabled: true # Enable statistics tracking
   persist: true # Save stats to stats.yml on disk
   track-per-player: true # Track individual player statistics
+  leaderboard-refresh-seconds: 300 # How often to refresh leaderboard caches
 
 # Debug settings
 debug:

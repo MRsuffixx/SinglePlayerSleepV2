@@ -53,7 +53,7 @@ effects:
     smart-scale: true # Reduce particle count based on online player count to prevent lag
   sounds:
     enabled: true # Enable sound effects
-    sleep-start: "ENTITY_PLAYER_SLEEP" # Sound when player starts sleeping
+    sleep-start: "ENTITY_PLAYER_BREATH" # Sound when player starts sleeping
     night-skip: "UI_TOAST_CHALLENGE_COMPLETE" # Sound when night is skipped
     countdown-tick: "BLOCK_NOTE_BLOCK_HAT" # Sound for each countdown tick
 

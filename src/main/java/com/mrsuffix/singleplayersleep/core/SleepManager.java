@@ -62,6 +62,9 @@ public class SleepManager {
     }
     
     public boolean isWorldEnabled(World world) {
+        if (world == null) {
+            return false;
+        }
         return worldManager.isEnabled(world);
     }
     

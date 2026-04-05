@@ -226,7 +226,7 @@ public class SleepSession {
         if (configManager.isAutoSave()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (world != null) {
-                    world.save(false);
+                    world.save();
                 }
             }, 1L);
         }

@@ -68,7 +68,7 @@ public class SinglePlayerSleep extends JavaPlugin {
         pluginManager.registerEvents(new SleepListener(sleepManager, afkModule), this);
         pluginManager.registerEvents(new AfkListener(afkModule, updateModule), this);
         try {
-            Class.forName("com.destroystokyo.paper.event.entity.PhantomSpawnEvent");
+            Class.forName("com.destroystokyo.paper.event.entity.PhantomPreSpawnEvent");
             pluginManager.registerEvents(new PhantomListener(configManager), this);
         } catch (ClassNotFoundException e) {
             getLogger().info("Paper not detected — PhantomListener not registered.");

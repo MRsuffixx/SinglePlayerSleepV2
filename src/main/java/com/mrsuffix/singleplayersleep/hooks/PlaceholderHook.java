@@ -61,8 +61,21 @@ public class PlaceholderHook extends PlaceholderExpansion {
         if (identifier == null) {
             return "";
         }
+        String key = identifier.toLowerCase();
+        if (player == null) {
+            switch (key) {
+                case "nights_skipped":
+                    return String.valueOf(statsManager.getGlobalStats().totalNightsSkipped);
+                case "mode":
+                    return configManager.getSleepMode();
+                case "percentage":
+                    return String.valueOf((int) configManager.getSleepPercentage());
+                default:
+                    return "";
+            }
+        }
         
-        switch (identifier.toLowerCase()) {
+        switch (key) {
             case "sleeping": {
                 if (player == null || player.getWorld() == null) {
                     return "";

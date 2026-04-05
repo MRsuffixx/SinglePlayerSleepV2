@@ -12,11 +12,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Map;
 import com.mrsuffix.singleplayersleep.util.TickUtil;
+import java.util.logging.Logger;
 
 public class UpdateModule {
     
     private final SinglePlayerSleep plugin;
     private final ConfigManager configManager;
+    private final Logger logger;
+    private final String currentVersion;
     
     private String latestVersion = null;
     private boolean updateAvailable = false;
@@ -24,13 +27,16 @@ public class UpdateModule {
     public UpdateModule(SinglePlayerSleep plugin, ConfigManager configManager) {
         this.plugin = plugin;
         this.configManager = configManager;
+        this.logger = plugin.getLogger();
+        this.currentVersion = plugin.getDescription().getVersion();
     }
     
     public void scheduleUpdateCheck() {
         if (!configManager.isUpdateCheckerEnabled()) {
             return;
         }
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, this::checkForUpdate, 40L);
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, this::checkForUpdate,
+                TickUtil.TICKS_PER_SECOND * 2);
         long intervalTicks = configManager.getUpdateCheckIntervalHours() * TickUtil.TICKS_PER_HOUR;
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::checkForUpdate, intervalTicks, intervalTicks);
     }
@@ -71,18 +77,17 @@ public class UpdateModule {
             
             String tagName = json.substring(tagStart, tagEnd);
             String remoteVersion = normalizeVersion(tagName);
-            String currentVersion = normalizeVersion(plugin.getDescription().getVersion());
+            String localVersion = normalizeVersion(currentVersion);
             
-            if (isNewer(remoteVersion, currentVersion)) {
+            if (isNewer(remoteVersion, localVersion)) {
                 latestVersion = tagName;
                 updateAvailable = true;
-                Bukkit.getScheduler().runTask(plugin, () -> plugin.getLogger().info(
-                        "Update available: " + latestVersion + " — Download at: github.com/"
-                                + configManager.getGithubUser() + "/" + configManager.getGithubRepo() + "/releases"));
+                logger.info("Update available: " + latestVersion + " — Download at: github.com/"
+                        + configManager.getGithubUser() + "/" + configManager.getGithubRepo() + "/releases");
             }
         } catch (Exception e) {
             if (configManager.isDebugEnabled()) {
-                plugin.getLogger().warning("Update check failed: " + e.getMessage());
+                logger.warning("Update check failed: " + e.getMessage());
             }
         }
     }
@@ -138,6 +143,7 @@ public class UpdateModule {
             return;
         }
         Bukkit.getScheduler().runTaskLater(plugin, () ->
-                MessageUtil.send(player, "update-available", Map.of("version", latestVersion)), 20L);
+                MessageUtil.send(player, "update-available", Map.of("version", latestVersion)),
+                TickUtil.TICKS_PER_SECOND);
     }
 }

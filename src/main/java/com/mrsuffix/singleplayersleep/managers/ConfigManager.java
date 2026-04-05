@@ -91,7 +91,7 @@ public class ConfigManager {
         smartScale = plugin.getConfig().getBoolean("effects.particles.smart-scale", true);
         
         soundsEnabled = plugin.getConfig().getBoolean("effects.sounds.enabled", true);
-        String sleepStartSoundName = plugin.getConfig().getString("effects.sounds.sleep-start", "ENTITY_PLAYER_SLEEP");
+        String sleepStartSoundName = plugin.getConfig().getString("effects.sounds.sleep-start", "ENTITY_PLAYER_BREATH");
         sleepStartSound = parseSound(sleepStartSoundName);
         String nightSkipSoundName = plugin.getConfig().getString("effects.sounds.night-skip", "UI_TOAST_CHALLENGE_COMPLETE");
         nightSkipSound = parseSound(nightSkipSoundName);
@@ -150,13 +150,13 @@ public class ConfigManager {
     private Sound parseSound(String name) {
         if (name == null) {
             plugin.getLogger().warning("Sound name is null, using default sound");
-            return Sound.ENTITY_PLAYER_SLEEP;
+            return Sound.ENTITY_PLAYER_BREATH;
         }
         try {
             return Sound.valueOf(name.toUpperCase());
         } catch (IllegalArgumentException e) {
             plugin.getLogger().warning("Invalid sound name '" + name + "', using default sound");
-            return Sound.ENTITY_PLAYER_SLEEP;
+            return Sound.ENTITY_PLAYER_BREATH;
         }
     }
     

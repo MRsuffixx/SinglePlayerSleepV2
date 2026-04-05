@@ -59,7 +59,11 @@ public class SleepListener implements Listener {
         }
         afkModule.onPlayerLeave(player.getUniqueId());
         if (player.isSleeping()) {
-            sleepManager.getSessionIfExists(player.getWorld())
+            World world = player.getWorld();
+            if (world == null) {
+                return;
+            }
+            sleepManager.getSessionIfExists(world)
                     .ifPresent(session -> session.onPlayerLeave(player));
         }
     }
@@ -75,7 +79,11 @@ public class SleepListener implements Listener {
         }
         afkModule.onPlayerLeave(player.getUniqueId());
         if (player.isSleeping()) {
-            sleepManager.getSessionIfExists(player.getWorld())
+            World world = player.getWorld();
+            if (world == null) {
+                return;
+            }
+            sleepManager.getSessionIfExists(world)
                     .ifPresent(session -> session.onPlayerLeave(player));
         }
     }
@@ -90,7 +98,11 @@ public class SleepListener implements Listener {
             return;
         }
         if (player.isSleeping()) {
-            sleepManager.getSessionIfExists(player.getWorld())
+            World world = player.getWorld();
+            if (world == null) {
+                return;
+            }
+            sleepManager.getSessionIfExists(world)
                     .ifPresent(session -> session.onPlayerLeave(player));
         }
         afkModule.onPlayerLeave(player.getUniqueId());

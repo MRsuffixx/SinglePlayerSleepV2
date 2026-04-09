@@ -3,13 +3,12 @@ package com.mrsuffix.singleplayersleep.managers;
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
 import com.mrsuffix.singleplayersleep.util.SafeRunner;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-
-import org.bukkit.OfflinePlayer;
 
 import java.io.File;
 import java.io.IOException;

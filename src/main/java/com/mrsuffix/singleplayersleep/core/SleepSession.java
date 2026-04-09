@@ -11,15 +11,15 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
+import com.mrsuffix.singleplayersleep.util.TickUtil;
+import com.mrsuffix.singleplayersleep.util.TimeUtil;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import com.mrsuffix.singleplayersleep.util.TickUtil;
-import com.mrsuffix.singleplayersleep.util.TimeUtil;
-
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SleepSession {
@@ -78,9 +78,7 @@ public class SleepSession {
         // Check cooldown unless player has bypass permission
         if (!player.hasPermission("singleplayersleep.bypasscooldown") && cooldownManager.isOnCooldown(world)) {
             long remaining = cooldownManager.getRemainingSeconds(world);
-            Map<String, String> replacements = new HashMap<>();
-            replacements.put("seconds", String.valueOf(remaining));
-            messageUtil.send(player, "cooldown-active", replacements);
+            messageUtil.send(player, "cooldown-active", Map.of("seconds", String.valueOf(remaining)));
             return;
         }
         

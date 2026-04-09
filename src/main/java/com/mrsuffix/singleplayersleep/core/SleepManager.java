@@ -6,7 +6,6 @@ import com.mrsuffix.singleplayersleep.managers.MessageUtil;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.managers.WorldManager;
 import com.mrsuffix.singleplayersleep.modules.*;
-import com.mrsuffix.singleplayersleep.modules.BossBarModule;
 import com.mrsuffix.singleplayersleep.util.TimeUtil;
 import org.bukkit.World;
 import org.bukkit.entity.Player;

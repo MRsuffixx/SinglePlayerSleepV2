@@ -1,7 +1,6 @@
 package com.mrsuffix.singleplayersleep.modules;
 
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.Collections;

@@ -17,6 +17,7 @@ public class CountdownModule {
     private final ConfigManager configManager;
     private final EffectsModule effectsModule;
     private final com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil;
+    private BossBarModule bossBarModule;
     
     public CountdownModule(SinglePlayerSleep plugin, ConfigManager configManager, EffectsModule effectsModule, com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil) {
         this.plugin = plugin;
@@ -24,12 +25,17 @@ public class CountdownModule {
         this.effectsModule = effectsModule;
         this.messageUtil = messageUtil;
     }
+
+    public void setBossBarModule(BossBarModule bossBarModule) {
+        this.bossBarModule = bossBarModule;
+    }
     
     public BukkitTask start(World world, int durationSeconds, Runnable onFinish) {
         if (world == null || onFinish == null) {
             return null;
         }
         
+        final int totalDuration = durationSeconds;
         return new BukkitRunnable() {
             private int remaining = durationSeconds;
             
@@ -37,6 +43,9 @@ public class CountdownModule {
             public void run() {
                 if (remaining <= 0) {
                     cancel();
+                    if (bossBarModule != null) {
+                        bossBarModule.hideCountdown(world);
+                    }
                     onFinish.run();
                     return;
                 }
@@ -52,6 +61,10 @@ public class CountdownModule {
                 
                 if (configManager.isCountdownShowChat()) {
                     messageUtil.broadcastWorldRaw(world, text);
+                }
+                
+                if (bossBarModule != null && configManager.isBossBarEnabled()) {
+                    bossBarModule.showCountdown(world, remaining, totalDuration);
                 }
                 
                 if (configManager.isCountdownSoundOnTick() && effectsModule != null) {

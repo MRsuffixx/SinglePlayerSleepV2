@@ -1,9 +1,11 @@
 package com.mrsuffix.singleplayersleep;
 
+import com.mrsuffix.singleplayersleep.hooks.PlaceholderHook;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.modules.AfkModule;
 import com.mrsuffix.singleplayersleep.modules.UpdateModule;
+import com.mrsuffix.singleplayersleep.modules.VoteModule;
 import com.mrsuffix.singleplayersleep.util.TickUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
@@ -21,17 +23,25 @@ public class TaskScheduler {
     private final UpdateModule updateModule;
     private final StatsManager statsManager;
     private final SleepManager sleepManager;
+    private final VoteModule voteModule;
     private final List<BukkitTask> tasks = new ArrayList<>();
+    private PlaceholderHook placeholderHook;
     
     public TaskScheduler(SinglePlayerSleep plugin, ConfigManager configManager,
                          AfkModule afkModule, UpdateModule updateModule,
-                         StatsManager statsManager, SleepManager sleepManager) {
+                         StatsManager statsManager, SleepManager sleepManager,
+                         VoteModule voteModule) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.afkModule = afkModule;
         this.updateModule = updateModule;
         this.statsManager = statsManager;
         this.sleepManager = sleepManager;
+        this.voteModule = voteModule;
+    }
+
+    public void setPlaceholderHook(PlaceholderHook placeholderHook) {
+        this.placeholderHook = placeholderHook;
     }
     
     public void startAll() {
@@ -40,9 +50,17 @@ public class TaskScheduler {
         // AFK check task
         int afkInterval = Math.max(20, configManager.getAfkCheckIntervalTicks());
         BukkitTask afkTask = Bukkit.getScheduler().runTaskTimer(plugin,
-                () -> afkModule.scheduledCheck(null),
+                () -> afkModule.scheduledCheck(sleepManager),
                 afkInterval, afkInterval);
         tasks.add(afkTask);
+
+        // PlaceholderAPI cache refresh task (every second)
+        if (placeholderHook != null) {
+            BukkitTask papiTask = Bukkit.getScheduler().runTaskTimer(plugin,
+                    placeholderHook::refreshCache,
+                    TickUtil.TICKS_PER_SECOND, TickUtil.TICKS_PER_SECOND);
+            tasks.add(papiTask);
+        }
         
         // Update checker task
         if (configManager.isUpdateCheckerEnabled() && updateModule != null) {
@@ -66,7 +84,7 @@ public class TaskScheduler {
 
         // Periodic stats save task (every 5 minutes)
         if (configManager.isStatsEnabled() && configManager.isStatsPersist()) {
-            long saveInterval = 20L * 60L * 5L; // 5 minutes in ticks
+            long saveInterval = TickUtil.TICKS_PER_5_MINUTES;
             BukkitTask statsSaveTask = Bukkit.getScheduler().runTaskTimer(
                     plugin,
                     () -> statsManager.save(),
@@ -75,9 +93,17 @@ public class TaskScheduler {
             tasks.add(statsSaveTask);
         }
 
+        // Vote timeout cleanup task (every 10 seconds)
+        if (voteModule != null && configManager.getVoteTimeoutSeconds() > 0) {
+            BukkitTask voteCleanupTask = Bukkit.getScheduler().runTaskTimer(plugin,
+                    voteModule::cleanupExpiredVotes,
+                    TickUtil.TICKS_PER_SECOND * 10, TickUtil.TICKS_PER_SECOND * 10);
+            tasks.add(voteCleanupTask);
+        }
+
         // Empty session cleanup task (every 5 minutes)
         if (sleepManager != null) {
-            long cleanupInterval = 20L * 60L * 5L; // 5 minutes in ticks
+            long cleanupInterval = TickUtil.TICKS_PER_5_MINUTES;
             BukkitTask cleanupTask = Bukkit.getScheduler().runTaskTimer(
                     plugin,
                     () -> sleepManager.cleanupEmptySessions(),

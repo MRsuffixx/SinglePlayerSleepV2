@@ -32,6 +32,7 @@ public class SinglePlayerSleep extends JavaPlugin {
     private PhantomModule phantomModule;
     private VoteModule voteModule;
     private CountdownModule countdownModule;
+    private BossBarModule bossBarModule;
     private StatsManager statsManager;
     private SleepManager sleepManager;
     private UpdateModule updateModule;
@@ -57,13 +58,16 @@ public class SinglePlayerSleep extends JavaPlugin {
         phantomModule = new PhantomModule(configManager, messageUtil);
         afkModule = new AfkModule(configManager);
         voteModule = new VoteModule(configManager);
+        bossBarModule = new BossBarModule(configManager, messageUtil);
         countdownModule = new CountdownModule(this, configManager, effectsModule, messageUtil);
+        countdownModule.setBossBarModule(bossBarModule);
         statsManager = new StatsManager(this, configManager);
         statsManager.load();
         
         sleepManager = new SleepManager(this, configManager, cooldownManager,
                 afkModule, effectsModule, phantomModule, countdownModule,
                 statsManager, worldManager, voteModule, messageUtil);
+        sleepManager.setBossBarModule(bossBarModule);
         
         updateModule = new UpdateModule(this, configManager, messageUtil);
 
@@ -79,16 +83,19 @@ public class SinglePlayerSleep extends JavaPlugin {
         configureCommands();
 
         // Centralized task scheduling
-        taskScheduler = new TaskScheduler(this, configManager, afkModule, updateModule, statsManager, sleepManager);
-        taskScheduler.startAll();
+        taskScheduler = new TaskScheduler(this, configManager, afkModule, updateModule, statsManager, sleepManager, voteModule);
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            new PlaceholderHook(this, configManager, sleepManager, cooldownManager,
-                    afkModule, statsManager).register();
+            PlaceholderHook placeholderHook = new PlaceholderHook(this, configManager, sleepManager, cooldownManager,
+                    afkModule, statsManager);
+            placeholderHook.register();
+            taskScheduler.setPlaceholderHook(placeholderHook);
             getLogger().info("PlaceholderAPI hook registered.");
         } else {
             getLogger().info("PlaceholderAPI not found — hook not registered.");
         }
+
+        taskScheduler.startAll();
 
         getLogger().info("SinglePlayerSleep enabled successfully.");
     }
@@ -100,6 +107,9 @@ public class SinglePlayerSleep extends JavaPlugin {
         }
         if (sleepManager != null) {
             sleepManager.resetAll();
+        }
+        if (bossBarModule != null) {
+            bossBarModule.hideAll();
         }
         if (statsManager != null) {
             statsManager.save();

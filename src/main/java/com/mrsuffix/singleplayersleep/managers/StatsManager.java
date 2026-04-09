@@ -9,6 +9,8 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
+import org.bukkit.OfflinePlayer;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -45,11 +47,14 @@ public class StatsManager {
         public long lastSkipTimestamp;
     }
     
+    private static final PlayerStats UNKNOWN = new PlayerStats("Unknown");
+
     private final SinglePlayerSleep plugin;
     private final ConfigManager configManager;
     private final GlobalStats globalStats = new GlobalStats();
     private final Map<UUID, PlayerStats> playerData = new HashMap<>();
     private volatile LeaderboardSnapshot leaderboardSnapshot = new LeaderboardSnapshot(List.of(), List.of(), 0L);
+    private volatile boolean dirty = false;
     private File statsFile;
     private FileConfiguration statsConfig;
     
@@ -71,6 +76,7 @@ public class StatsManager {
                     k -> new PlayerStats(player.getName()));
             ps.name = player.getName();
             ps.timesSlept++;
+            dirty = true;
         }
     }
     
@@ -91,14 +97,22 @@ public class StatsManager {
                 continue;
             }
             Player player = Bukkit.getPlayer(uuid);
+            String name;
+            if (player != null) {
+                name = player.getName();
+            } else {
+                OfflinePlayer offline = Bukkit.getOfflinePlayer(uuid);
+                name = offline.getName() != null ? offline.getName() : uuid.toString();
+            }
             PlayerStats ps = playerData.computeIfAbsent(uuid,
-                    k -> new PlayerStats(player != null ? player.getName() : uuid.toString()));
+                    k -> new PlayerStats(name));
             ps.nightsContributedTo++;
         }
+        dirty = true;
     }
     
     public PlayerStats getPlayerStats(UUID uuid) {
-        return playerData.getOrDefault(uuid, new PlayerStats("Unknown"));
+        return playerData.getOrDefault(uuid, UNKNOWN);
     }
     
     public GlobalStats getGlobalStats() {
@@ -127,6 +141,10 @@ public class StatsManager {
             leaderboardSnapshot = new LeaderboardSnapshot(List.of(), List.of(), 0L);
             return;
         }
+        if (!dirty && leaderboardSnapshot.timestamp() > 0) {
+            return;
+        }
+        dirty = false;
         SafeRunner.runSync(plugin, () -> {
             List<LeaderboardEntry> sleepersSnapshot = new ArrayList<>(playerData.size());
             List<LeaderboardEntry> contributorsSnapshot = new ArrayList<>(playerData.size());
@@ -223,7 +241,7 @@ public class StatsManager {
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to load stats.yml: " + e.getMessage());
         }
-        cleanupOldEntries(90); // Clean up entries older than 90 days
+        cleanupOldEntries(configManager.getStatsCleanupDays());
         refreshLeaderboards();
     }
     

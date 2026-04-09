@@ -6,6 +6,7 @@ import com.mrsuffix.singleplayersleep.managers.MessageUtil;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.managers.WorldManager;
 import com.mrsuffix.singleplayersleep.modules.*;
+import com.mrsuffix.singleplayersleep.modules.BossBarModule;
 import com.mrsuffix.singleplayersleep.util.TimeUtil;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -28,6 +29,7 @@ public class SleepManager {
     
     private final VoteModule voteModule;
     private final MessageUtil messageUtil;
+    private BossBarModule bossBarModule;
     
     private final ConcurrentHashMap<String, SleepSession> sessions = new ConcurrentHashMap<>();
     
@@ -49,6 +51,10 @@ public class SleepManager {
         this.voteModule = voteModule;
         this.messageUtil = messageUtil;
     }
+
+    public void setBossBarModule(BossBarModule bossBarModule) {
+        this.bossBarModule = bossBarModule;
+    }
     
     public SleepSession getSession(World world) {
         if (world == null) {
@@ -58,7 +64,8 @@ public class SleepManager {
         return sessions.computeIfAbsent(world.getName(), k -> 
             new SleepSession(plugin, world, configManager, cooldownManager,
                            afkModule, effectsModule, phantomModule,
-                           countdownModule, statsManager, voteModule, messageUtil)
+                           countdownModule, statsManager, voteModule, messageUtil,
+                           bossBarModule)
         );
     }
     

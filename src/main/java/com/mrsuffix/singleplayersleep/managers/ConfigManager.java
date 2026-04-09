@@ -70,6 +70,13 @@ public class ConfigManager {
     private boolean statsPersist;
     private boolean trackPerPlayer;
     private int leaderboardRefreshSeconds;
+    private int statsCleanupDays;
+    
+    private long skipTargetTime;
+    
+    private boolean bossBarEnabled;
+    
+    private int voteTimeoutSeconds;
     
     private boolean debugEnabled;
     
@@ -179,6 +186,13 @@ public class ConfigManager {
         statsPersist = plugin.getConfig().getBoolean("stats.persist", true);
         trackPerPlayer = plugin.getConfig().getBoolean("stats.track-per-player", true);
         leaderboardRefreshSeconds = plugin.getConfig().getInt("stats.leaderboard-refresh-seconds", 300);
+        statsCleanupDays = plugin.getConfig().getInt("stats.cleanup-days", 90);
+        
+        skipTargetTime = plugin.getConfig().getLong("sleep.skip-target-time", 0L);
+        
+        bossBarEnabled = plugin.getConfig().getBoolean("countdown.show-bossbar", false);
+        
+        voteTimeoutSeconds = plugin.getConfig().getInt("sleep.vote-timeout-seconds", 0);
         
         debugEnabled = plugin.getConfig().getBoolean("debug.enabled", false);
         
@@ -359,7 +373,7 @@ public class ConfigManager {
     }
     
     public Set<String> getEnabledWorlds() {
-        return enabledWorlds;
+        return Set.copyOf(enabledWorlds);
     }
     
     public WorldMode getWorldsMode() {
@@ -412,6 +426,22 @@ public class ConfigManager {
 
     public int getLeaderboardRefreshSeconds() {
         return leaderboardRefreshSeconds;
+    }
+
+    public int getStatsCleanupDays() {
+        return statsCleanupDays;
+    }
+
+    public long getSkipTargetTime() {
+        return skipTargetTime;
+    }
+
+    public boolean isBossBarEnabled() {
+        return bossBarEnabled;
+    }
+
+    public int getVoteTimeoutSeconds() {
+        return voteTimeoutSeconds;
     }
     
     public boolean isDebugEnabled() {

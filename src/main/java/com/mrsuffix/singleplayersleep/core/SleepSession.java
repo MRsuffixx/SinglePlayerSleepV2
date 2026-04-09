@@ -12,12 +12,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.mrsuffix.singleplayersleep.util.TickUtil;
 import com.mrsuffix.singleplayersleep.util.TimeUtil;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,6 +38,7 @@ public class SleepSession {
     
     private final VoteModule voteModule;
     private final MessageUtil messageUtil;
+    private final BossBarModule bossBarModule;
     
     private final Set<UUID> sleepingPlayers = ConcurrentHashMap.newKeySet();
     private BukkitTask skipTask = null;
@@ -49,7 +50,8 @@ public class SleepSession {
                         CooldownManager cooldownManager, AfkModule afkModule,
                         EffectsModule effectsModule, PhantomModule phantomModule,
                         CountdownModule countdownModule, StatsManager statsManager,
-                        VoteModule voteModule, MessageUtil messageUtil) {
+                        VoteModule voteModule, MessageUtil messageUtil,
+                        BossBarModule bossBarModule) {
         this.plugin = plugin;
         this.world = world;
         this.configManager = configManager;
@@ -61,6 +63,7 @@ public class SleepSession {
         this.statsManager = statsManager;
         this.voteModule = voteModule;
         this.messageUtil = messageUtil;
+        this.bossBarModule = bossBarModule;
     }
     
     public void onPlayerSleep(Player player) {
@@ -97,16 +100,15 @@ public class SleepSession {
         
         int required = calculateRequired();
         int current = getEffectiveSleepingCount();
-        Map<String, String> replacements = new HashMap<>();
-        replacements.put("player", player.getName());
-        replacements.put("current", String.valueOf(current));
-        replacements.put("required", String.valueOf(required));
-        messageUtil.broadcastWorld(world, "player-sleeping", replacements);
+        messageUtil.broadcastWorld(world, "player-sleeping", Map.of(
+                "player", player.getName(),
+                "current", String.valueOf(current),
+                "required", String.valueOf(required)));
         
         if (configManager.isAfkEnabled() && configManager.isExcludeAfkFromCount() && !afkMessageSentThisSession) {
             if (world != null && afkModule != null
                     && world.getPlayers().stream().anyMatch(p -> p != null && afkModule.isAfk(p))) {
-                messageUtil.broadcastWorld(world, "afk-excluded", new HashMap<>());
+                messageUtil.broadcastWorld(world, "afk-excluded", Map.of());
                 afkMessageSentThisSession = true;
             }
         }
@@ -131,9 +133,7 @@ public class SleepSession {
         }
         
         if (getEffectiveSleepingCount() == 0 && configManager.getSleepMode() != null && configManager.getSleepMode().isPercentage()) {
-            Map<String, String> replacements = new HashMap<>();
-            replacements.put("player", player.getName());
-            messageUtil.broadcastWorld(world, "player-woke-up", replacements);
+            messageUtil.broadcastWorld(world, "player-woke-up", Map.of("player", player.getName()));
         }
     }
 
@@ -189,10 +189,9 @@ public class SleepSession {
         if (current >= required) {
             startDelayOrCountdown();
         } else if (configManager.getSleepMode() != null && configManager.getSleepMode().isPercentage()) {
-            Map<String, String> replacements = new HashMap<>();
-            replacements.put("current", String.valueOf(current));
-            replacements.put("required", String.valueOf(required));
-            messageUtil.broadcastWorld(world, "vote-needed", replacements);
+            messageUtil.broadcastWorld(world, "vote-needed", Map.of(
+                    "current", String.valueOf(current),
+                    "required", String.valueOf(required)));
         }
     }
     
@@ -271,7 +270,13 @@ public class SleepSession {
             return;
         }
         
-        world.setTime(0);
+        // Validate all sleeping players are still valid to prevent stale state
+        sleepingPlayers.removeIf(uuid -> {
+            Player p = Bukkit.getPlayer(uuid);
+            return p == null || !p.isOnline() || !p.getWorld().equals(world);
+        });
+        
+        world.setTime(configManager.getSkipTargetTime());
 
         WorldSettings settings = configManager.getWorldSettings(world);
         WorldSettings.WeatherSettings weatherSettings = settings == null ? null : settings.weatherSettings();
@@ -302,7 +307,7 @@ public class SleepSession {
             }
         }
         
-        messageUtil.broadcastWorld(world, "night-skipped", new HashMap<>());
+        messageUtil.broadcastWorld(world, "night-skipped", Map.of());
         
         // Defer world save to reduce main-thread lag
         if (configManager.isAutoSave()) {
@@ -314,7 +319,7 @@ public class SleepSession {
                         plugin.getLogger().warning("World save failed after night skip: " + e.getMessage());
                     }
                 }
-            }, 5L);
+            }, TickUtil.WORLD_SAVE_DELAY_TICKS);
         }
         
         if (configManager.isPhantomResetOnSkip() && phantomModule != null) {
@@ -336,6 +341,9 @@ public class SleepSession {
         sleepingPlayers.clear();
         if (voteModule != null && world != null) {
             voteModule.clearVotes(world.getName());
+        }
+        if (bossBarModule != null && world != null) {
+            bossBarModule.hideCountdown(world);
         }
         isProcessing = false;
         afkMessageSentThisSession = false;

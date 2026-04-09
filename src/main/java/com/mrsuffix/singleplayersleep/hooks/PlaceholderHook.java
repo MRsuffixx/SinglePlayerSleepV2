@@ -13,9 +13,9 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.Callable;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlaceholderHook extends PlaceholderExpansion {
     
@@ -25,6 +25,13 @@ public class PlaceholderHook extends PlaceholderExpansion {
     private final CooldownManager cooldownManager;
     private final AfkModule afkModule;
     private final StatsManager statsManager;
+
+    // Cached values updated periodically on the main thread to avoid thread-hopping
+    private final Map<String, Integer> cachedSleeping = new ConcurrentHashMap<>();
+    private final Map<String, Integer> cachedRequired = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> cachedIsNight = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> cachedIsProcessing = new ConcurrentHashMap<>();
+    private final Map<String, Long> cachedCooldown = new ConcurrentHashMap<>();
     
     public PlaceholderHook(SinglePlayerSleep plugin, ConfigManager configManager,
                            SleepManager sleepManager, CooldownManager cooldownManager,
@@ -61,6 +68,28 @@ public class PlaceholderHook extends PlaceholderExpansion {
     public boolean canRegister() {
         return true;
     }
+
+    /**
+     * Called periodically from the main thread (via TaskScheduler) to refresh
+     * cached placeholder values without blocking async threads.
+     */
+    public void refreshCache() {
+        for (World world : plugin.getServer().getWorlds()) {
+            if (world == null) continue;
+            String name = world.getName();
+            cachedIsNight.put(name, TimeUtil.isNight(world));
+            cachedCooldown.put(name, cooldownManager.getRemainingSeconds(world));
+            sleepManager.getSessionIfExists(world).ifPresentOrElse(session -> {
+                cachedSleeping.put(name, session.getEffectiveSleepingCount());
+                cachedRequired.put(name, session.calculateRequired());
+                cachedIsProcessing.put(name, session.isProcessing());
+            }, () -> {
+                cachedSleeping.put(name, 0);
+                cachedRequired.put(name, 0);
+                cachedIsProcessing.put(name, false);
+            });
+        }
+    }
     
     @Override
     public String onPlaceholderRequest(Player player, @NotNull String identifier) {
@@ -85,51 +114,27 @@ public class PlaceholderHook extends PlaceholderExpansion {
             }
         }
         
+        String worldName = player.getWorld() != null ? player.getWorld().getName() : null;
+
         switch (key) {
             case "sleeping": {
                 if (!canViewSensitive) return "";
-                return runSync(() -> {
-                    World world = player.getWorld();
-                    if (world == null) return "0";
-                    return sleepManager.getSessionIfExists(world)
-                            .map(session -> String.valueOf(session.getEffectiveSleepingCount()))
-                            .orElse("0");
-                });
+                return String.valueOf(cachedSleeping.getOrDefault(worldName, 0));
             }
             case "required": {
                 if (!canViewSensitive) return "";
-                return runSync(() -> {
-                    World world = player.getWorld();
-                    if (world == null) return "0";
-                    return sleepManager.getSessionIfExists(world)
-                            .map(session -> String.valueOf(session.calculateRequired()))
-                            .orElse("0");
-                });
+                return String.valueOf(cachedRequired.getOrDefault(worldName, 0));
             }
             case "is_night": {
-                return runSync(() -> {
-                    World world = player.getWorld();
-                    if (world == null) return "";
-                    return String.valueOf(TimeUtil.isNight(world));
-                });
+                return String.valueOf(cachedIsNight.getOrDefault(worldName, false));
             }
             case "is_processing": {
                 if (!canViewSensitive) return "";
-                return runSync(() -> {
-                    World world = player.getWorld();
-                    if (world == null) return "false";
-                    return sleepManager.getSessionIfExists(world)
-                            .map(session -> String.valueOf(session.isProcessing()))
-                            .orElse("false");
-                });
+                return String.valueOf(cachedIsProcessing.getOrDefault(worldName, false));
             }
             case "cooldown": {
                 if (!canViewSensitive) return "0";
-                return runSync(() -> {
-                    World world = player.getWorld();
-                    if (world == null) return "0";
-                    return String.valueOf(cooldownManager.getRemainingSeconds(world));
-                });
+                return String.valueOf(cachedCooldown.getOrDefault(worldName, 0L));
             }
             case "is_afk": {
                 if (!canViewSensitive) return "";
@@ -146,23 +151,6 @@ public class PlaceholderHook extends PlaceholderExpansion {
                 return String.valueOf((int) configManager.getSleepPercentage());
             default:
                 return "";
-        }
-    }
-    
-    private String runSync(Callable<String> task) {
-        if (Bukkit.isPrimaryThread()) {
-            try {
-                return task.call();
-            } catch (Exception e) {
-                return "";
-            }
-        }
-        FutureTask<String> future = new FutureTask<>(task);
-        Bukkit.getScheduler().runTask(plugin, future);
-        try {
-            return future.get(3, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            return "";
         }
     }
 }

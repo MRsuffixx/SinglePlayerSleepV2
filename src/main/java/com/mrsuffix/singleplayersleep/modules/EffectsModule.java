@@ -2,6 +2,7 @@ package com.mrsuffix.singleplayersleep.modules;
 
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 
@@ -34,7 +35,8 @@ public class EffectsModule {
         }
         for (Player player : world.getPlayers()) {
             if (player != null) {
-                player.playSound(player.getLocation(), configManager.getNightSkipSound(), 1.0f, 1.0f);
+                Location loc = player.getLocation();
+                world.playSound(loc, configManager.getNightSkipSound(), 1.0f, 1.0f);
             }
         }
     }
@@ -87,7 +89,8 @@ public class EffectsModule {
         }
         for (Player player : world.getPlayers()) {
             if (player != null) {
-                player.playSound(player.getLocation(), configManager.getCountdownTickSound(), 0.5f, 1.2f);
+                Location loc = player.getLocation();
+                world.playSound(loc, configManager.getCountdownTickSound(), 0.5f, 1.2f);
             }
         }
     }

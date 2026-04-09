@@ -25,9 +25,6 @@ public class SleepListener implements Listener {
     
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBedEnter(PlayerBedEnterEvent event) {
-        if (event.getPlayer() == null) {
-            return;
-        }
         sleepManager.onPlayerSleep(event);
     }
     

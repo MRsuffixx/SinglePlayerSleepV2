@@ -10,8 +10,8 @@ import com.mrsuffix.singleplayersleep.commands.SleepCommand;
 import com.mrsuffix.singleplayersleep.commands.SpsCommand;
 import com.mrsuffix.singleplayersleep.hooks.PlaceholderHook;
 import com.mrsuffix.singleplayersleep.listeners.AfkListener;
-import com.mrsuffix.singleplayersleep.listeners.PhantomListener;
 import com.mrsuffix.singleplayersleep.listeners.SleepListener;
+import com.mrsuffix.singleplayersleep.listeners.WorldListener;
 import com.mrsuffix.singleplayersleep.modules.*;
 import org.bukkit.Bukkit;
 import org.bukkit.event.HandlerList;
@@ -19,8 +19,7 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 public class SinglePlayerSleep extends JavaPlugin {
 
@@ -35,6 +34,8 @@ public class SinglePlayerSleep extends JavaPlugin {
     private StatsManager statsManager;
     private SleepManager sleepManager;
     private UpdateModule updateModule;
+    private MessageUtil messageUtil;
+    private TaskScheduler taskScheduler;
 
     @Override
     public void onEnable() {
@@ -43,60 +44,39 @@ public class SinglePlayerSleep extends JavaPlugin {
         configManager = new ConfigManager(this);
         configManager.loadCache();
         
-        MessageUtil.init(configManager);
+        // Create MessageUtil as injectable instance service
+        messageUtil = new MessageUtil(configManager);
+        
         getLogger().info("SinglePlayerSleep v" + getDescription().getVersion() + " by mrsuffix — enabling...");
         
         worldManager = new WorldManager(this, configManager);
         cooldownManager = new CooldownManager(configManager);
         
         effectsModule = new EffectsModule(this, configManager);
-        phantomModule = new PhantomModule(configManager);
+        phantomModule = new PhantomModule(configManager, messageUtil);
         afkModule = new AfkModule(configManager);
         voteModule = new VoteModule(configManager);
-        countdownModule = new CountdownModule(this, configManager, effectsModule);
+        countdownModule = new CountdownModule(this, configManager, effectsModule, messageUtil);
         statsManager = new StatsManager(this, configManager);
         statsManager.load();
-        statsManager.scheduleLeaderboardRefresh();
         
         sleepManager = new SleepManager(this, configManager, cooldownManager,
                 afkModule, effectsModule, phantomModule, countdownModule,
-                statsManager, worldManager);
+                statsManager, worldManager, voteModule, messageUtil);
         
-        updateModule = new UpdateModule(this, configManager);
+        updateModule = new UpdateModule(this, configManager, messageUtil);
 
         HandlerList.unregisterAll(this);
         PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(new SleepListener(sleepManager, afkModule), this);
-        pluginManager.registerEvents(new AfkListener(afkModule, updateModule, sleepManager), this);
-        try {
-            Class.forName("com.destroystokyo.paper.event.entity.PhantomPreSpawnEvent");
-            pluginManager.registerEvents(new PhantomListener(configManager), this);
-        } catch (ClassNotFoundException e) {
-            getLogger().info("Paper not detected — PhantomListener not registered.");
-        }
+        pluginManager.registerEvents(new AfkListener(afkModule, updateModule, sleepManager, configManager, this), this);
+        pluginManager.registerEvents(new WorldListener(sleepManager, cooldownManager, voteModule), this);
 
-        PluginCommand sleepCmd = getCommand(configManager.getSleepCommandName());
-        if (sleepCmd != null) {
-            SleepCommand sleepExecutor = new SleepCommand(this, configManager, sleepManager, voteModule, worldManager);
-            sleepCmd.setExecutor(sleepExecutor);
-        } else {
-            getLogger().warning("Could not register /sleep command. Check command name in config matches plugin.yml declaration.");
-        }
+        configureCommands();
 
-        PluginCommand spsCmd = getCommand("sps");
-        if (spsCmd != null) {
-            SpsCommand spsExecutor = new SpsCommand(this, configManager, sleepManager, cooldownManager,
-                    voteModule, worldManager, statsManager, updateModule, afkModule);
-            spsCmd.setExecutor(spsExecutor);
-            spsCmd.setTabCompleter(spsExecutor);
-        }
-
-        Bukkit.getScheduler().runTaskTimer(this,
-                () -> afkModule.scheduledCheck(sleepManager),
-                configManager.getAfkCheckIntervalTicks(),
-                configManager.getAfkCheckIntervalTicks());
-
-        updateModule.scheduleUpdateCheck();
+        // Centralized task scheduling
+        taskScheduler = new TaskScheduler(this, configManager, afkModule, updateModule, statsManager);
+        taskScheduler.startAll();
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PlaceholderHook(this, configManager, sleepManager, cooldownManager,
@@ -111,6 +91,9 @@ public class SinglePlayerSleep extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (taskScheduler != null) {
+            taskScheduler.stopAll();
+        }
         if (sleepManager != null) {
             sleepManager.resetAll();
         }
@@ -119,5 +102,38 @@ public class SinglePlayerSleep extends JavaPlugin {
         }
 
         getLogger().info("SinglePlayerSleep disabled. Goodbye!");
+    }
+    
+    public void configureCommands() {
+        // Sleep command
+        PluginCommand sleepCmd = getCommand(configManager.getSleepCommandName());
+        if (sleepCmd != null) {
+            SleepCommand sleepExecutor = new SleepCommand(this, configManager, sleepManager, voteModule, worldManager, cooldownManager, messageUtil);
+            sleepCmd.setExecutor(sleepExecutor);
+            // Apply aliases from config
+            List<String> aliases = configManager.getSleepAliases();
+            if (aliases != null && !aliases.isEmpty()) {
+                sleepCmd.setAliases(aliases);
+            }
+        } else {
+            getLogger().warning("Could not register /sleep command. Check command name in config matches plugin.yml declaration.");
+        }
+
+        // SPS admin command
+        PluginCommand spsCmd = getCommand("sps");
+        if (spsCmd != null) {
+            SpsCommand spsExecutor = new SpsCommand(this, configManager, sleepManager, cooldownManager,
+                    voteModule, worldManager, statsManager, updateModule, afkModule, messageUtil, taskScheduler);
+            spsCmd.setExecutor(spsExecutor);
+            spsCmd.setTabCompleter(spsExecutor);
+        }
+    }
+    
+    public TaskScheduler getTaskScheduler() {
+        return taskScheduler;
+    }
+    
+    public MessageUtil getMessageUtil() {
+        return messageUtil;
     }
 }

@@ -11,9 +11,11 @@ import java.util.Map;
 public class PhantomModule {
     
     private final ConfigManager configManager;
+    private final com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil;
     
-    public PhantomModule(ConfigManager configManager) {
+    public PhantomModule(ConfigManager configManager, com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil) {
         this.configManager = configManager;
+        this.messageUtil = messageUtil;
     }
     
     public void resetPhantomTimers(World world) {
@@ -33,6 +35,6 @@ public class PhantomModule {
                 player.getServer().getLogger().warning("Could not reset phantom timer for " + player.getName());
             }
         }
-        MessageUtil.broadcastWorld(world, "phantom-reset", Map.of());
+        messageUtil.broadcastWorld(world, "phantom-reset", Map.of());
     }
 }

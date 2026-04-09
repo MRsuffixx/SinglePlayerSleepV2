@@ -23,6 +23,9 @@ public class StatsManager {
 
     public record LeaderboardEntry(UUID uuid, String name, int value) {
     }
+
+    private record LeaderboardSnapshot(List<LeaderboardEntry> sleepers, List<LeaderboardEntry> contributors, long timestamp) {
+    }
     
     public static class PlayerStats {
         public String name;
@@ -44,9 +47,7 @@ public class StatsManager {
     private final ConfigManager configManager;
     private final GlobalStats globalStats = new GlobalStats();
     private final Map<UUID, PlayerStats> playerData = new HashMap<>();
-    private volatile List<LeaderboardEntry> topSleepersCache = List.of();
-    private volatile List<LeaderboardEntry> topContributorsCache = List.of();
-    private volatile long lastLeaderboardRefresh = 0L;
+    private volatile LeaderboardSnapshot leaderboardSnapshot = new LeaderboardSnapshot(List.of(), List.of(), 0L);
     private File statsFile;
     private FileConfiguration statsConfig;
     
@@ -103,30 +104,25 @@ public class StatsManager {
     }
 
     public List<LeaderboardEntry> getTopSleepers(int limit) {
-        return limitList(topSleepersCache, limit);
+        return limitList(leaderboardSnapshot.sleepers(), limit);
     }
 
     public List<LeaderboardEntry> getTopContributors(int limit) {
-        return limitList(topContributorsCache, limit);
+        return limitList(leaderboardSnapshot.contributors(), limit);
     }
 
     public long getLastLeaderboardRefresh() {
-        return lastLeaderboardRefresh;
+        return leaderboardSnapshot.timestamp();
     }
 
     public void scheduleLeaderboardRefresh() {
-        if (!configManager.isStatsEnabled() || !configManager.isTrackPerPlayer()) {
-            return;
-        }
-        long intervalTicks = Math.max(20L, configManager.getLeaderboardRefreshSeconds() * 20L);
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::refreshLeaderboards, intervalTicks, intervalTicks);
+        // Deprecated: scheduling now handled by TaskScheduler
         refreshLeaderboards();
     }
 
     public void refreshLeaderboards() {
         if (!configManager.isStatsEnabled() || !configManager.isTrackPerPlayer()) {
-            topSleepersCache = List.of();
-            topContributorsCache = List.of();
+            leaderboardSnapshot = new LeaderboardSnapshot(List.of(), List.of(), 0L);
             return;
         }
         SafeRunner.runSync(plugin, () -> {
@@ -147,9 +143,12 @@ public class StatsManager {
                         .thenComparing(LeaderboardEntry::name, String.CASE_INSENSITIVE_ORDER);
                 sleepersSnapshot.sort(comparator);
                 contributorsSnapshot.sort(comparator);
-                topSleepersCache = List.copyOf(sleepersSnapshot);
-                topContributorsCache = List.copyOf(contributorsSnapshot);
-                lastLeaderboardRefresh = System.currentTimeMillis();
+                // Atomic update of all three fields via single snapshot object
+                leaderboardSnapshot = new LeaderboardSnapshot(
+                        List.copyOf(sleepersSnapshot),
+                        List.copyOf(contributorsSnapshot),
+                        System.currentTimeMillis()
+                );
             });
         });
     }
@@ -232,9 +231,7 @@ public class StatsManager {
         globalStats.totalNightsSkipped = 0;
         globalStats.totalSleepEvents = 0;
         globalStats.lastSkipTimestamp = 0;
-        topSleepersCache = List.of();
-        topContributorsCache = List.of();
-        lastLeaderboardRefresh = 0L;
+        leaderboardSnapshot = new LeaderboardSnapshot(List.of(), List.of(), 0L);
         load();
     }
 

@@ -128,9 +128,6 @@ public class AfkModule {
     }
     
     public void scheduledCheck(SleepManager sleepManager) {
-        if (sleepManager == null) {
-            return;
-        }
         if (!configManager.isAfkEnabled()) {
             clearAfkIndicators();
             return;

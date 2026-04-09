@@ -55,6 +55,6 @@ public record SleepRule(int minPlayers, int maxPlayers, double percentage) {
     }
 
     private static int parseInt(String value) {
-        return Integer.parseInt(value.replaceAll("[^0-9]", ""));
+        return Integer.parseInt(value);
     }
 }

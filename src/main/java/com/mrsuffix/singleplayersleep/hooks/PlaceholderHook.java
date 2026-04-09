@@ -7,9 +7,14 @@ import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.modules.AfkModule;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
 
 public class PlaceholderHook extends PlaceholderExpansion {
     
@@ -62,12 +67,16 @@ public class PlaceholderHook extends PlaceholderExpansion {
             return "";
         }
         String key = identifier.toLowerCase();
+        
+        // Permission gate for sensitive placeholders
+        boolean canViewSensitive = player == null || player.hasPermission("singleplayersleep.admin");
+        
         if (player == null) {
             switch (key) {
                 case "nights_skipped":
                     return String.valueOf(statsManager.getGlobalStats().totalNightsSkipped);
                 case "mode":
-                    return configManager.getSleepMode();
+                    return configManager.getSleepModeName();
                 case "percentage":
                     return String.valueOf((int) configManager.getSleepPercentage());
                 default:
@@ -77,72 +86,82 @@ public class PlaceholderHook extends PlaceholderExpansion {
         
         switch (key) {
             case "sleeping": {
-                if (player == null || player.getWorld() == null) {
-                    return "";
-                }
-                World world = player.getWorld();
-                return sleepManager.getSessionIfExists(world)
-                        .map(session -> String.valueOf(session.getSleepingPlayers().size()))
-                        .orElse("0");
+                if (!canViewSensitive) return "";
+                return runSync(() -> {
+                    World world = player.getWorld();
+                    if (world == null) return "0";
+                    return sleepManager.getSessionIfExists(world)
+                            .map(session -> String.valueOf(session.getEffectiveSleepingCount()))
+                            .orElse("0");
+                });
             }
             case "required": {
-                if (player == null || player.getWorld() == null) {
-                    return "";
-                }
-                World world = player.getWorld();
-                return sleepManager.getSessionIfExists(world)
-                        .map(session -> String.valueOf(session.calculateRequired()))
-                        .orElse("0");
+                if (!canViewSensitive) return "";
+                return runSync(() -> {
+                    World world = player.getWorld();
+                    if (world == null) return "0";
+                    return sleepManager.getSessionIfExists(world)
+                            .map(session -> String.valueOf(session.calculateRequired()))
+                            .orElse("0");
+                });
             }
             case "is_night": {
-                if (player == null) {
-                    return "";
-                }
-                World world = player.getWorld();
-                if (world == null) {
-                    return "";
-                }
-                return String.valueOf(world.getTime() >= 12541 && world.getTime() <= 23458);
+                return runSync(() -> {
+                    World world = player.getWorld();
+                    if (world == null) return "";
+                    return String.valueOf(world.getTime() >= 12541 && world.getTime() <= 23458);
+                });
             }
             case "is_processing": {
-                if (player == null || player.getWorld() == null) {
-                    return "";
-                }
-                World world = player.getWorld();
-                return sleepManager.getSessionIfExists(world)
-                        .map(session -> String.valueOf(session.isProcessing()))
-                        .orElse("false");
+                if (!canViewSensitive) return "";
+                return runSync(() -> {
+                    World world = player.getWorld();
+                    if (world == null) return "false";
+                    return sleepManager.getSessionIfExists(world)
+                            .map(session -> String.valueOf(session.isProcessing()))
+                            .orElse("false");
+                });
             }
             case "cooldown": {
-                if (player == null) {
-                    return "0";
-                }
-                World world = player.getWorld();
-                if (world == null) {
-                    return "0";
-                }
-                return String.valueOf(cooldownManager.getRemainingSeconds(world));
+                if (!canViewSensitive) return "0";
+                return runSync(() -> {
+                    World world = player.getWorld();
+                    if (world == null) return "0";
+                    return String.valueOf(cooldownManager.getRemainingSeconds(world));
+                });
             }
             case "is_afk": {
-                if (player == null) {
-                    return "";
-                }
+                if (!canViewSensitive) return "";
                 return String.valueOf(afkModule.isAfk(player));
             }
             case "nights_skipped":
                 return String.valueOf(statsManager.getGlobalStats().totalNightsSkipped);
             case "player_times_slept": {
-                if (player == null) {
-                    return "0";
-                }
                 return String.valueOf(statsManager.getPlayerStats(player.getUniqueId()).timesSlept);
             }
             case "mode":
-                return configManager.getSleepMode();
+                return configManager.getSleepModeName();
             case "percentage":
                 return String.valueOf((int) configManager.getSleepPercentage());
             default:
                 return "";
+        }
+    }
+    
+    private String runSync(Callable<String> task) {
+        if (Bukkit.isPrimaryThread()) {
+            try {
+                return task.call();
+            } catch (Exception e) {
+                return "";
+            }
+        }
+        FutureTask<String> future = new FutureTask<>(task);
+        Bukkit.getScheduler().runTask(plugin, future);
+        try {
+            return future.get(3, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            return "";
         }
     }
 }

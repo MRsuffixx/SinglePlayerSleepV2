@@ -16,11 +16,13 @@ public class CountdownModule {
     private final SinglePlayerSleep plugin;
     private final ConfigManager configManager;
     private final EffectsModule effectsModule;
+    private final com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil;
     
-    public CountdownModule(SinglePlayerSleep plugin, ConfigManager configManager, EffectsModule effectsModule) {
+    public CountdownModule(SinglePlayerSleep plugin, ConfigManager configManager, EffectsModule effectsModule, com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.effectsModule = effectsModule;
+        this.messageUtil = messageUtil;
     }
     
     public BukkitTask start(World world, int durationSeconds, Runnable onFinish) {
@@ -39,17 +41,17 @@ public class CountdownModule {
                     return;
                 }
                 
-                String text = MessageUtil.formatRaw("countdown",
+                String text = messageUtil.formatRaw("countdown",
                         Map.of("seconds", String.valueOf(remaining)));
                 
                 if (configManager.isCountdownShowActionBar()) {
                     for (Player player : world.getPlayers()) {
-                        MessageUtil.sendActionBar(player, text);
+                        messageUtil.sendActionBar(player, text);
                     }
                 }
                 
                 if (configManager.isCountdownShowChat()) {
-                    MessageUtil.broadcastWorldRaw(world, text);
+                    messageUtil.broadcastWorldRaw(world, text);
                 }
                 
                 if (configManager.isCountdownSoundOnTick() && effectsModule != null) {

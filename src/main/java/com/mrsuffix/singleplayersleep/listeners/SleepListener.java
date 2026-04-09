@@ -58,11 +58,10 @@ public class SleepListener implements Listener {
             return;
         }
         afkModule.onPlayerLeave(player.getUniqueId());
-        if (player.isSleeping()) {
-            World world = player.getWorld();
-            if (world == null) {
-                return;
-            }
+        // Always notify session of player leave - player may be tracked in sleepingPlayers
+        // even if isSleeping() returns false (e.g., kicked before sleep animation completed)
+        World world = player.getWorld();
+        if (world != null) {
             sleepManager.getSessionIfExists(world)
                     .ifPresent(session -> session.onPlayerLeave(player));
         }
@@ -78,11 +77,9 @@ public class SleepListener implements Listener {
             return;
         }
         afkModule.onPlayerLeave(player.getUniqueId());
-        if (player.isSleeping()) {
-            World world = player.getWorld();
-            if (world == null) {
-                return;
-            }
+        // Always notify session of player leave - player may be tracked in sleepingPlayers
+        World world = player.getWorld();
+        if (world != null) {
             sleepManager.getSessionIfExists(world)
                     .ifPresent(session -> session.onPlayerLeave(player));
         }
@@ -97,11 +94,9 @@ public class SleepListener implements Listener {
         if (player == null) {
             return;
         }
-        if (player.isSleeping()) {
-            World world = player.getWorld();
-            if (world == null) {
-                return;
-            }
+        // Always notify session of player leave
+        World world = player.getWorld();
+        if (world != null) {
             sleepManager.getSessionIfExists(world)
                     .ifPresent(session -> session.onPlayerLeave(player));
         }

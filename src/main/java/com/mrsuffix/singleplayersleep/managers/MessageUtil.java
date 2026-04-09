@@ -1,6 +1,7 @@
 package com.mrsuffix.singleplayersleep.managers;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -9,16 +10,15 @@ import java.util.Map;
 
 public class MessageUtil {
     
-    private static ConfigManager configManager;
+    private final ConfigManager configManager;
+    private final LegacyComponentSerializer legacySerializer;
     
-    private MessageUtil() {
+    public MessageUtil(ConfigManager configManager) {
+        this.configManager = configManager;
+        this.legacySerializer = LegacyComponentSerializer.legacyAmpersand();
     }
     
-    public static void init(ConfigManager configManager) {
-        MessageUtil.configManager = configManager;
-    }
-    
-    public static String format(String key, Map<String, String> replacements) {
+    public String format(String key, Map<String, String> replacements) {
         if (configManager == null) {
             return "[SPS] MessageUtil not initialized";
         }
@@ -42,7 +42,7 @@ public class MessageUtil {
         return ChatColor.translateAlternateColorCodes('&', message);
     }
     
-    public static String formatRaw(String key, Map<String, String> replacements) {
+    public String formatRaw(String key, Map<String, String> replacements) {
         if (configManager == null) {
             return "[SPS] MessageUtil not initialized";
         }
@@ -61,33 +61,25 @@ public class MessageUtil {
         return ChatColor.translateAlternateColorCodes('&', message);
     }
     
-    public static void send(Player player, String key, Map<String, String> replacements) {
-        if (player == null) {
-            return;
-        }
-        if (!player.isOnline()) {
+    public void send(Player player, String key, Map<String, String> replacements) {
+        if (player == null || !player.isOnline()) {
             return;
         }
         player.sendMessage(format(key, replacements));
     }
     
-    public static void sendActionBar(Player player, String text) {
-        if (player == null) {
+    public void sendActionBar(Player player, String text) {
+        if (player == null || !player.isOnline()) {
             return;
         }
-        if (!player.isOnline()) {
+        if (text == null) {
             return;
         }
-        
-        try {
-            String coloredText = ChatColor.translateAlternateColorCodes('&', text);
-            player.sendActionBar(Component.text(coloredText));
-        } catch (Exception e) {
-            player.sendMessage(text);
-        }
+        Component component = legacySerializer.deserialize(text);
+        player.sendActionBar(component);
     }
     
-    public static void broadcastWorld(World world, String key, Map<String, String> replacements) {
+    public void broadcastWorld(World world, String key, Map<String, String> replacements) {
         if (world == null) {
             return;
         }
@@ -100,7 +92,7 @@ public class MessageUtil {
         }
     }
     
-    public static void broadcastWorldRaw(World world, String formattedText) {
+    public void broadcastWorldRaw(World world, String formattedText) {
         if (world == null) {
             return;
         }
@@ -111,4 +103,5 @@ public class MessageUtil {
             }
         }
     }
+    
 }

@@ -18,30 +18,22 @@ public class UpdateModule {
     
     private final SinglePlayerSleep plugin;
     private final ConfigManager configManager;
+    private final com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil;
     private final Logger logger;
     private final String currentVersion;
     
     private String latestVersion = null;
     private boolean updateAvailable = false;
     
-    public UpdateModule(SinglePlayerSleep plugin, ConfigManager configManager) {
+    public UpdateModule(SinglePlayerSleep plugin, ConfigManager configManager, com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil) {
         this.plugin = plugin;
         this.configManager = configManager;
+        this.messageUtil = messageUtil;
         this.logger = plugin.getLogger();
         this.currentVersion = plugin.getDescription().getVersion();
     }
     
-    public void scheduleUpdateCheck() {
-        if (!configManager.isUpdateCheckerEnabled()) {
-            return;
-        }
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, this::checkForUpdate,
-                TickUtil.TICKS_PER_SECOND * 2);
-        long intervalTicks = configManager.getUpdateCheckIntervalHours() * TickUtil.TICKS_PER_HOUR;
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this::checkForUpdate, intervalTicks, intervalTicks);
-    }
-    
-    private void checkForUpdate() {
+    public void checkForUpdate() {
         try {
             String url = "https://api.github.com/repos/" + configManager.getGithubUser() + "/"
                     + configManager.getGithubRepo() + "/releases/latest";
@@ -143,7 +135,7 @@ public class UpdateModule {
             return;
         }
         Bukkit.getScheduler().runTaskLater(plugin, () ->
-                MessageUtil.send(player, "update-available", Map.of("version", latestVersion)),
+                messageUtil.send(player, "update-available", Map.of("version", latestVersion)),
                 TickUtil.TICKS_PER_SECOND);
     }
 }

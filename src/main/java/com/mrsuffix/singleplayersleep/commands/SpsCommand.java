@@ -37,12 +37,15 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
     private final StatsManager statsManager;
     private final UpdateModule updateModule;
     private final AfkModule afkModule;
+    private final com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil;
+    private final com.mrsuffix.singleplayersleep.TaskScheduler taskScheduler;
     
     public SpsCommand(SinglePlayerSleep plugin, ConfigManager configManager,
                       SleepManager sleepManager, CooldownManager cooldownManager,
                       VoteModule voteModule, WorldManager worldManager,
                       StatsManager statsManager, UpdateModule updateModule,
-                      AfkModule afkModule) {
+                      AfkModule afkModule, com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil,
+                      com.mrsuffix.singleplayersleep.TaskScheduler taskScheduler) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.sleepManager = sleepManager;
@@ -52,12 +55,14 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
         this.statsManager = statsManager;
         this.updateModule = updateModule;
         this.afkModule = afkModule;
+        this.messageUtil = messageUtil;
+        this.taskScheduler = taskScheduler;
     }
     
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!sender.hasPermission("singleplayersleep.admin")) {
-            sender.sendMessage(MessageUtil.format("no-permission", Map.of()));
+            sender.sendMessage(messageUtil.format("no-permission", Map.of()));
             return true;
         }
         
@@ -75,10 +80,14 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
                 }
                 plugin.reloadConfig();
                 configManager.loadCache();
-                MessageUtil.init(configManager);
-                worldManager.reload();
+                // Reconfigure command aliases from config
+                plugin.configureCommands();
+                // Restart scheduled tasks with new config
+                if (taskScheduler != null) {
+                    taskScheduler.restart();
+                }
                 statsManager.reload();
-                sender.sendMessage(MessageUtil.format("reload-success", Map.of()));
+                sender.sendMessage(messageUtil.format("reload-success", Map.of()));
                 return true;
             case "stats":
                 handleStats(sender, args);
@@ -96,7 +105,7 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
                 return true;
             case "version":
                 sender.sendMessage("§b=== SinglePlayerSleep v" + plugin.getDescription().getVersion() + " by mrsuffix ===");
-                sender.sendMessage("§7Mode: §f" + configManager.getSleepMode());
+                sender.sendMessage("§7Mode: §f" + configManager.getSleepModeName());
                 sender.sendMessage("§7API version: §f" + plugin.getDescription().getAPIVersion());
                 if (updateModule != null && updateModule.isUpdateAvailable()) {
                     sender.sendMessage("§eUpdate available: §f" + updateModule.getLatestVersion());

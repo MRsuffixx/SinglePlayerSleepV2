@@ -1,7 +1,9 @@
 package com.mrsuffix.singleplayersleep.managers;
 
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
+import com.mrsuffix.singleplayersleep.core.SleepMode;
 import com.mrsuffix.singleplayersleep.core.SleepRule;
+import com.mrsuffix.singleplayersleep.core.WorldMode;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -13,7 +15,7 @@ public class ConfigManager {
     
     private final SinglePlayerSleep plugin;
     
-    private String sleepMode;
+    private SleepMode sleepMode;
     private double sleepPercentage;
     private int delayTicks;
     private int cooldownSeconds;
@@ -48,7 +50,7 @@ public class ConfigManager {
     private Sound countdownTickSound;
     
     private Set<String> enabledWorlds;
-    private String worldsMode;
+    private WorldMode worldsMode;
     private WorldSettings defaultWorldSettings;
     private final Map<String, WorldSettings> worldOverrides = new HashMap<>();
     private final Map<String, Boolean> worldEnableOverrides = new HashMap<>();
@@ -79,7 +81,7 @@ public class ConfigManager {
     }
     
     public void loadCache() {
-        sleepMode = plugin.getConfig().getString("sleep.mode", "single");
+        sleepMode = SleepMode.fromConfig(plugin.getConfig().getString("sleep.mode", "single"), plugin.getLogger());
         sleepPercentage = plugin.getConfig().getDouble("sleep.percentage", 50.0);
         delayTicks = plugin.getConfig().getInt("sleep.delay-ticks", 100);
         cooldownSeconds = plugin.getConfig().getInt("sleep.cooldown-seconds", 60);
@@ -134,7 +136,7 @@ public class ConfigManager {
         countdownTickSound = parseSound(countdownTickSoundName);
         
         enabledWorlds = new HashSet<>(plugin.getConfig().getStringList("worlds.enabled"));
-        worldsMode = plugin.getConfig().getString("worlds.mode", "whitelist");
+        worldsMode = WorldMode.fromConfig(plugin.getConfig().getString("worlds.mode", "whitelist"), plugin.getLogger());
         WorldSettings.WeatherSettings baseWeather = new WorldSettings.WeatherSettings(
                 weatherChangeEnabled, clearRain, clearThunder);
         ConfigurationSection worldDefaultsSection = plugin.getConfig().getConfigurationSection("worlds.defaults");
@@ -166,7 +168,7 @@ public class ConfigManager {
         
         updateCheckerEnabled = plugin.getConfig().getBoolean("update-checker.enabled", true);
         githubUser = plugin.getConfig().getString("update-checker.github-user", "mrsuffix");
-        githubRepo = plugin.getConfig().getString("update-checker.github-repo", "SinglePlayerSleep");
+        githubRepo = plugin.getConfig().getString("update-checker.github-repo", "SinglePlayerSleepV2");
         notifyOnJoin = plugin.getConfig().getBoolean("update-checker.notify-on-join", true);
         updateCheckIntervalHours = plugin.getConfig().getInt("update-checker.check-interval-hours", 24);
         
@@ -222,8 +224,12 @@ public class ConfigManager {
         }
     }
     
-    public String getSleepMode() {
+    public SleepMode getSleepMode() {
         return sleepMode;
+    }
+
+    public String getSleepModeName() {
+        return sleepMode == null ? "single" : sleepMode.toString();
     }
 
     public List<SleepRule> getDynamicRules() {
@@ -356,7 +362,7 @@ public class ConfigManager {
         return enabledWorlds;
     }
     
-    public String getWorldsMode() {
+    public WorldMode getWorldsMode() {
         return worldsMode;
     }
     
@@ -452,8 +458,10 @@ public class ConfigManager {
         if (section == null) {
             return fallback;
         }
-        List<SleepRule> parsed = parseRules(section.getStringList("dynamic-rules"));
-        return parsed.isEmpty() ? fallback : parsed;
+        if (!section.contains("dynamic-rules")) {
+            return fallback;
+        }
+        return parseRules(section.getStringList("dynamic-rules"));
     }
 
     private WorldSettings.WeatherSettings readWeatherSettings(ConfigurationSection section,
@@ -476,12 +484,9 @@ public class ConfigManager {
             return false;
         }
         boolean inList = enabledWorlds.contains(worldName);
-        if ("whitelist".equalsIgnoreCase(worldsMode)) {
+        if (worldsMode == null) {
             return inList;
-        } else if ("blacklist".equalsIgnoreCase(worldsMode)) {
-            return !inList;
         }
-        plugin.getLogger().warning("Unknown worlds.mode '" + worldsMode + "' - disabling world: " + worldName);
-        return false;
+        return worldsMode.isWhitelist() ? inList : !inList;
     }
 }

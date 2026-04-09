@@ -2,6 +2,7 @@ package com.mrsuffix.singleplayersleep.core;
 
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
+import com.mrsuffix.singleplayersleep.managers.MessageUtil;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.managers.WorldManager;
 import com.mrsuffix.singleplayersleep.modules.*;
@@ -24,13 +25,17 @@ public class SleepManager {
     private final StatsManager statsManager;
     private final WorldManager worldManager;
     
+    private final VoteModule voteModule;
+    private final MessageUtil messageUtil;
+    
     private final ConcurrentHashMap<String, SleepSession> sessions = new ConcurrentHashMap<>();
     
     public SleepManager(SinglePlayerSleep plugin, ConfigManager configManager,
                         CooldownManager cooldownManager, AfkModule afkModule,
                         EffectsModule effectsModule, PhantomModule phantomModule,
                         CountdownModule countdownModule, StatsManager statsManager,
-                        WorldManager worldManager) {
+                        WorldManager worldManager, VoteModule voteModule,
+                        MessageUtil messageUtil) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.cooldownManager = cooldownManager;
@@ -40,6 +45,8 @@ public class SleepManager {
         this.countdownModule = countdownModule;
         this.statsManager = statsManager;
         this.worldManager = worldManager;
+        this.voteModule = voteModule;
+        this.messageUtil = messageUtil;
     }
     
     public SleepSession getSession(World world) {
@@ -50,7 +57,7 @@ public class SleepManager {
         return sessions.computeIfAbsent(world.getName(), k -> 
             new SleepSession(plugin, world, configManager, cooldownManager,
                            afkModule, effectsModule, phantomModule,
-                           countdownModule, statsManager)
+                           countdownModule, statsManager, voteModule, messageUtil)
         );
     }
     
@@ -71,6 +78,16 @@ public class SleepManager {
     public void resetAll() {
         sessions.values().forEach(SleepSession::reset);
         sessions.clear();
+    }
+    
+    public void clearSession(World world) {
+        if (world == null) {
+            return;
+        }
+        SleepSession session = sessions.remove(world.getName());
+        if (session != null) {
+            session.reset();
+        }
     }
     
     public void onPlayerSleep(PlayerBedEnterEvent event) {

@@ -3,13 +3,13 @@ package com.mrsuffix.singleplayersleep.core;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import org.bukkit.World;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CooldownManager {
     
     private final ConfigManager configManager;
-    private final Map<String, Long> lastSkipTime = new HashMap<>();
+    private final Map<String, Long> lastSkipTime = new ConcurrentHashMap<>();
     
     public CooldownManager(ConfigManager configManager) {
         this.configManager = configManager;

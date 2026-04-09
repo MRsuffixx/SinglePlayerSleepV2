@@ -11,9 +11,20 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SleepSession {
+    
+    // Time constants for day/night cycle (Minecraft ticks)
+    private static final long SUNSET_TICKS = 12541L;   // When players can first sleep
+    private static final long SUNRISE_TICKS = 23458L; // When day begins / night ends
     
     private final SinglePlayerSleep plugin;
     private final World world;
@@ -25,14 +36,20 @@ public class SleepSession {
     private final CountdownModule countdownModule;
     private final StatsManager statsManager;
     
+    private final VoteModule voteModule;
+    private final MessageUtil messageUtil;
+    
     private final Set<UUID> sleepingPlayers = new HashSet<>();
     private BukkitTask skipTask = null;
+    private BukkitTask delayTask = null;
     private boolean isProcessing = false;
+    private boolean afkMessageSentThisSession = false;
     
     public SleepSession(SinglePlayerSleep plugin, World world, ConfigManager configManager,
                         CooldownManager cooldownManager, AfkModule afkModule,
                         EffectsModule effectsModule, PhantomModule phantomModule,
-                        CountdownModule countdownModule, StatsManager statsManager) {
+                        CountdownModule countdownModule, StatsManager statsManager,
+                        VoteModule voteModule, MessageUtil messageUtil) {
         this.plugin = plugin;
         this.world = world;
         this.configManager = configManager;
@@ -42,6 +59,8 @@ public class SleepSession {
         this.phantomModule = phantomModule;
         this.countdownModule = countdownModule;
         this.statsManager = statsManager;
+        this.voteModule = voteModule;
+        this.messageUtil = messageUtil;
     }
     
     public void onPlayerSleep(Player player) {
@@ -53,15 +72,21 @@ public class SleepSession {
             return;
         }
         
-        if (cooldownManager.isOnCooldown(world)) {
+        // Check cooldown unless player has bypass permission
+        if (!player.hasPermission("singleplayersleep.bypasscooldown") && cooldownManager.isOnCooldown(world)) {
             long remaining = cooldownManager.getRemainingSeconds(world);
             Map<String, String> replacements = new HashMap<>();
             replacements.put("seconds", String.valueOf(remaining));
-            MessageUtil.send(player, "cooldown-active", replacements);
+            messageUtil.send(player, "cooldown-active", replacements);
             return;
         }
         
         sleepingPlayers.add(player.getUniqueId());
+        
+        // Also add as a vote in percentage mode to unify counting
+        if (configManager.getSleepMode() != null && configManager.getSleepMode().isPercentage() && voteModule != null) {
+            voteModule.addVote(player);
+        }
         
         if (effectsModule != null) {
             effectsModule.playSleepStart(player);
@@ -71,16 +96,18 @@ public class SleepSession {
         }
         
         int required = calculateRequired();
+        int current = getEffectiveSleepingCount();
         Map<String, String> replacements = new HashMap<>();
         replacements.put("player", player.getName());
-        replacements.put("current", String.valueOf(sleepingPlayers.size()));
+        replacements.put("current", String.valueOf(current));
         replacements.put("required", String.valueOf(required));
-        MessageUtil.broadcastWorld(world, "player-sleeping", replacements);
+        messageUtil.broadcastWorld(world, "player-sleeping", replacements);
         
-        if (configManager.isAfkEnabled() && configManager.isExcludeAfkFromCount()) {
+        if (configManager.isAfkEnabled() && configManager.isExcludeAfkFromCount() && !afkMessageSentThisSession) {
             if (world != null && afkModule != null
                     && world.getPlayers().stream().anyMatch(p -> p != null && afkModule.isAfk(p))) {
-                MessageUtil.broadcastWorld(world, "afk-excluded", new HashMap<>());
+                messageUtil.broadcastWorld(world, "afk-excluded", new HashMap<>());
+                afkMessageSentThisSession = true;
             }
         }
         
@@ -93,16 +120,20 @@ public class SleepSession {
         }
         
         sleepingPlayers.remove(player.getUniqueId());
+        if (voteModule != null) {
+            voteModule.removeVote(player);
+        }
         
         if (isProcessing) {
             cancelSkipTask();
+            cancelDelayTask();
             isProcessing = false;
         }
         
-        if (sleepingPlayers.isEmpty() && configManager.getSleepMode().equals("percentage")) {
+        if (getEffectiveSleepingCount() == 0 && configManager.getSleepMode() != null && configManager.getSleepMode().isPercentage()) {
             Map<String, String> replacements = new HashMap<>();
             replacements.put("player", player.getName());
-            MessageUtil.broadcastWorld(world, "player-woke-up", replacements);
+            messageUtil.broadcastWorld(world, "player-woke-up", replacements);
         }
     }
 
@@ -111,14 +142,15 @@ public class SleepSession {
         if (required <= 0) {
             return;
         }
+        int effectiveCount = getEffectiveSleepingCount();
         if (isProcessing) {
-            if (sleepingPlayers.size() < required) {
+            if (effectiveCount < required) {
                 cancelSkipTask();
                 isProcessing = false;
             }
             return;
         }
-        if (sleepingPlayers.size() >= required) {
+        if (effectiveCount >= required) {
             startCountdown();
         }
     }
@@ -129,11 +161,15 @@ public class SleepSession {
         }
         
         sleepingPlayers.remove(player.getUniqueId());
+        if (voteModule != null) {
+            voteModule.removeVote(player);
+        }
         
         if (isProcessing) {
             int required = calculateRequired();
-            if (sleepingPlayers.size() < required) {
+            if (getEffectiveSleepingCount() < required) {
                 cancelSkipTask();
+                cancelDelayTask();
                 isProcessing = false;
             }
         }
@@ -149,13 +185,14 @@ public class SleepSession {
             return;
         }
         
-        if (sleepingPlayers.size() >= required) {
-            startCountdown();
-        } else if (configManager.getSleepMode().equals("percentage")) {
+        int current = getEffectiveSleepingCount();
+        if (current >= required) {
+            startDelayOrCountdown();
+        } else if (configManager.getSleepMode() != null && configManager.getSleepMode().isPercentage()) {
             Map<String, String> replacements = new HashMap<>();
-            replacements.put("current", String.valueOf(sleepingPlayers.size()));
+            replacements.put("current", String.valueOf(current));
             replacements.put("required", String.valueOf(required));
-            MessageUtil.broadcastWorld(world, "vote-needed", replacements);
+            messageUtil.broadcastWorld(world, "vote-needed", replacements);
         }
     }
     
@@ -177,7 +214,7 @@ public class SleepSession {
                         && afkModule.isAfk(p)))
                 .count();
         
-        if (configManager.getSleepMode().equals("single")) {
+        if (configManager.getSleepMode() != null && configManager.getSleepMode().isSingle()) {
             return 1;
         } else {
             double percentage = resolvePercentage(eligibleCount);
@@ -185,9 +222,21 @@ public class SleepSession {
         }
     }
     
-    public void startCountdown() {
+    private void startDelayOrCountdown() {
         isProcessing = true;
-        
+        int delayTicks = Math.max(0, configManager.getDelayTicks());
+        if (delayTicks > 0) {
+            cancelDelayTask();
+            delayTask = Bukkit.getScheduler().runTaskLater(plugin, this::startCountdown, delayTicks);
+        } else {
+            startCountdown();
+        }
+    }
+    
+    private void startCountdown() {
+        if (!isProcessing) {
+            return;
+        }
         if (!configManager.isCountdownEnabled()) {
             executeSkip();
             return;
@@ -215,7 +264,9 @@ public class SleepSession {
         }
         
         long time = world.getTime();
-        if (time < 12541 || time > 23458) {
+        // SUNSET_TICKS (12541) = first tick players can sleep (inclusive)
+        // SUNRISE_TICKS (23458) = last tick of night before dawn (inclusive)
+        if (time < SUNSET_TICKS || time > SUNRISE_TICKS) {
             reset();
             return;
         }
@@ -244,21 +295,26 @@ public class SleepSession {
         
         for (UUID uuid : sleepingPlayers) {
             Player p = Bukkit.getPlayer(uuid);
-            if (p != null) {
+            if (p != null && p.getWorld().equals(world)) {
                 if (effectsModule != null) {
                     effectsModule.spawnSleepParticles(p);
                 }
             }
         }
         
-        MessageUtil.broadcastWorld(world, "night-skipped", new HashMap<>());
+        messageUtil.broadcastWorld(world, "night-skipped", new HashMap<>());
         
+        // Defer world save to reduce main-thread lag
         if (configManager.isAutoSave()) {
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 if (world != null) {
-                    world.save();
+                    try {
+                        world.save();
+                    } catch (Exception e) {
+                        plugin.getLogger().warning("World save failed after night skip: " + e.getMessage());
+                    }
                 }
-            }, 1L);
+            }, 5L);
         }
         
         if (configManager.isPhantomResetOnSkip() && phantomModule != null) {
@@ -276,8 +332,20 @@ public class SleepSession {
     
     public void reset() {
         cancelSkipTask();
+        cancelDelayTask();
         sleepingPlayers.clear();
+        if (voteModule != null && world != null) {
+            voteModule.clearVotes(world.getName());
+        }
         isProcessing = false;
+        afkMessageSentThisSession = false;
+    }
+    
+    private void cancelDelayTask() {
+        if (delayTask != null) {
+            delayTask.cancel();
+            delayTask = null;
+        }
     }
     
     private void cancelSkipTask() {
@@ -288,13 +356,28 @@ public class SleepSession {
     }
     
     public Set<UUID> getSleepingPlayers() {
-        return Collections.unmodifiableSet(new HashSet<>(sleepingPlayers));
+        return Collections.unmodifiableSet(sleepingPlayers);
+    }
+    
+    public int getEffectiveSleepingCount() {
+        Set<UUID> effective = new HashSet<>();
+        effective.addAll(sleepingPlayers);
+        if (voteModule != null && world != null) {
+            String worldName = world.getName();
+            voteModule.getVotes(worldName).forEach(uuid -> {
+                Player p = Bukkit.getPlayer(uuid);
+                if (p != null && p.isOnline() && !sleepingPlayers.contains(uuid)) {
+                    effective.add(uuid);
+                }
+            });
+        }
+        return effective.size();
     }
 
     private double resolvePercentage(long eligibleCount) {
         WorldSettings settings = configManager.getWorldSettings(world);
         double percentage = settings != null ? settings.sleepPercentage() : configManager.getSleepPercentage();
-        if (!configManager.getSleepMode().equalsIgnoreCase("percentage")) {
+        if (configManager.getSleepMode() == null || configManager.getSleepMode().isSingle()) {
             return percentage;
         }
         List<SleepRule> rules = settings != null ? settings.dynamicRules() : configManager.getDynamicRules();

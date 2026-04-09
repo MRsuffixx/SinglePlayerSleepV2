@@ -3,15 +3,14 @@ package com.mrsuffix.singleplayersleep.modules;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class VoteModule {
     
-    private final Map<String, Set<UUID>> votes = new HashMap<>();
+    private final Map<String, Set<UUID>> votes = new ConcurrentHashMap<>();
     private final ConfigManager configManager;
     
     public VoteModule(ConfigManager configManager) {
@@ -23,8 +22,8 @@ public class VoteModule {
             return false;
         }
         String world = player.getWorld().getName();
-        votes.computeIfAbsent(world, k -> new HashSet<>());
-        return votes.get(world).add(player.getUniqueId());
+        return votes.computeIfAbsent(world, k -> ConcurrentHashMap.newKeySet())
+                .add(player.getUniqueId());
     }
     
     public void removeVote(Player player) {
@@ -45,6 +44,11 @@ public class VoteModule {
         return worldVotes != null && worldVotes.contains(player.getUniqueId());
     }
     
+    public Set<UUID> getVotes(String worldName) {
+        Set<UUID> worldVotes = votes.get(worldName);
+        return worldVotes == null ? Set.of() : Set.copyOf(worldVotes);
+    }
+    
     public int getVoteCount(String worldName) {
         Set<UUID> worldVotes = votes.get(worldName);
         return worldVotes == null ? 0 : worldVotes.size();
@@ -53,8 +57,12 @@ public class VoteModule {
     public void clearVotes(String worldName) {
         votes.remove(worldName);
     }
+
+    public void clearAll() {
+        votes.clear();
+    }
     
     public boolean isVoteMode() {
-        return configManager.getSleepMode().equals("percentage");
+        return configManager.getSleepMode() != null && configManager.getSleepMode().isPercentage();
     }
 }

@@ -25,7 +25,7 @@ public class SleepListener implements Listener {
     
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBedEnter(PlayerBedEnterEvent event) {
-        if (event == null || event.getPlayer() == null) {
+        if (event.getPlayer() == null) {
             return;
         }
         sleepManager.onPlayerSleep(event);
@@ -33,9 +33,6 @@ public class SleepListener implements Listener {
     
     @EventHandler(priority = EventPriority.NORMAL)
     public void onBedLeave(PlayerBedLeaveEvent event) {
-        if (event == null) {
-            return;
-        }
         Player player = event.getPlayer();
         if (player == null) {
             return;
@@ -50,9 +47,6 @@ public class SleepListener implements Listener {
     
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
-        if (event == null) {
-            return;
-        }
         Player player = event.getPlayer();
         if (player == null) {
             return;
@@ -69,9 +63,6 @@ public class SleepListener implements Listener {
     
     @EventHandler(priority = EventPriority.MONITOR)
     public void onKick(PlayerKickEvent event) {
-        if (event == null) {
-            return;
-        }
         Player player = event.getPlayer();
         if (player == null) {
             return;
@@ -87,9 +78,6 @@ public class SleepListener implements Listener {
     
     @EventHandler(priority = EventPriority.MONITOR)
     public void onDeath(PlayerDeathEvent event) {
-        if (event == null) {
-            return;
-        }
         Player player = event.getEntity();
         if (player == null) {
             return;

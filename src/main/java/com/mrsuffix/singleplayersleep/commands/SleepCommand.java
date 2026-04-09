@@ -8,6 +8,8 @@ import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import com.mrsuffix.singleplayersleep.managers.MessageUtil;
 import com.mrsuffix.singleplayersleep.managers.WorldManager;
 import com.mrsuffix.singleplayersleep.modules.VoteModule;
+
+import java.util.Optional;
 import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -100,15 +102,13 @@ public class SleepCommand implements CommandExecutor {
             boolean isNew = voteModule.addVote(player);
             if (isNew) {
                 int current = voteModule.getVoteCount(world.getName());
-                SleepSession session = sleepManager.getSession(world);
-                int required = session == null ? 1 : session.calculateRequired();
+                Optional<SleepSession> sessionOpt = sleepManager.getSessionIfExists(world);
+                int required = sessionOpt.map(SleepSession::calculateRequired).orElse(1);
                 messageUtil.broadcastWorld(world, "player-sleeping",
                         Map.of("player", player.getName(),
                                "current", String.valueOf(current),
                                "required", String.valueOf(required)));
-                if (session != null) {
-                    session.checkSleepCondition();
-                }
+                sessionOpt.ifPresent(SleepSession::checkSleepCondition);
             }
         }
         

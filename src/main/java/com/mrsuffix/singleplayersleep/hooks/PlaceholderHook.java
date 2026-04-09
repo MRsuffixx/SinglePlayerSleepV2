@@ -6,6 +6,7 @@ import com.mrsuffix.singleplayersleep.core.SleepManager;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.modules.AfkModule;
+import com.mrsuffix.singleplayersleep.util.TimeUtil;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -109,7 +110,7 @@ public class PlaceholderHook extends PlaceholderExpansion {
                 return runSync(() -> {
                     World world = player.getWorld();
                     if (world == null) return "";
-                    return String.valueOf(world.getTime() >= 12541 && world.getTime() <= 23458);
+                    return String.valueOf(TimeUtil.isNight(world));
                 });
             }
             case "is_processing": {

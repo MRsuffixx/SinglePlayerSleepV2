@@ -1,6 +1,7 @@
 package com.mrsuffix.singleplayersleep.commands;
 
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
+import com.mrsuffix.singleplayersleep.TaskScheduler;
 import com.mrsuffix.singleplayersleep.core.CooldownManager;
 import com.mrsuffix.singleplayersleep.core.SleepManager;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
@@ -37,15 +38,15 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
     private final StatsManager statsManager;
     private final UpdateModule updateModule;
     private final AfkModule afkModule;
-    private final com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil;
-    private final com.mrsuffix.singleplayersleep.TaskScheduler taskScheduler;
+    private final MessageUtil messageUtil;
+    private final TaskScheduler taskScheduler;
     
     public SpsCommand(SinglePlayerSleep plugin, ConfigManager configManager,
                       SleepManager sleepManager, CooldownManager cooldownManager,
                       VoteModule voteModule, WorldManager worldManager,
                       StatsManager statsManager, UpdateModule updateModule,
-                      AfkModule afkModule, com.mrsuffix.singleplayersleep.managers.MessageUtil messageUtil,
-                      com.mrsuffix.singleplayersleep.TaskScheduler taskScheduler) {
+                      AfkModule afkModule, MessageUtil messageUtil,
+                      TaskScheduler taskScheduler) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.sleepManager = sleepManager;

@@ -3,6 +3,7 @@ package com.mrsuffix.singleplayersleep.modules;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import org.bukkit.entity.Player;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -18,7 +19,7 @@ public class VoteModule {
     }
     
     public boolean addVote(Player player) {
-        if (player == null || player.getWorld() == null) {
+        if (player == null) {
             return false;
         }
         String world = player.getWorld().getName();
@@ -27,7 +28,7 @@ public class VoteModule {
     }
     
     public void removeVote(Player player) {
-        if (player == null || player.getWorld() == null) {
+        if (player == null) {
             return;
         }
         Set<UUID> worldVotes = votes.get(player.getWorld().getName());
@@ -37,7 +38,7 @@ public class VoteModule {
     }
     
     public boolean hasVoted(Player player) {
-        if (player == null || player.getWorld() == null) {
+        if (player == null) {
             return false;
         }
         Set<UUID> worldVotes = votes.get(player.getWorld().getName());
@@ -46,7 +47,7 @@ public class VoteModule {
     
     public Set<UUID> getVotes(String worldName) {
         Set<UUID> worldVotes = votes.get(worldName);
-        return worldVotes == null ? Set.of() : Set.copyOf(worldVotes);
+        return worldVotes == null ? Set.of() : Collections.unmodifiableSet(worldVotes);
     }
     
     public int getVoteCount(String worldName) {

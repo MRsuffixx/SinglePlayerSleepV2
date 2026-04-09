@@ -18,13 +18,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.mrsuffix.singleplayersleep.util.TimeUtil;
+
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SleepSession {
     
-    // Time constants for day/night cycle (Minecraft ticks)
-    private static final long SUNSET_TICKS = 12541L;   // When players can first sleep
-    private static final long SUNRISE_TICKS = 23458L; // When day begins / night ends
+    // Time constants now imported from TimeUtil
     
     private final SinglePlayerSleep plugin;
     private final World world;
@@ -39,7 +39,7 @@ public class SleepSession {
     private final VoteModule voteModule;
     private final MessageUtil messageUtil;
     
-    private final Set<UUID> sleepingPlayers = new HashSet<>();
+    private final Set<UUID> sleepingPlayers = ConcurrentHashMap.newKeySet();
     private BukkitTask skipTask = null;
     private BukkitTask delayTask = null;
     private boolean isProcessing = false;
@@ -264,15 +264,15 @@ public class SleepSession {
         }
         
         long time = world.getTime();
-        // SUNSET_TICKS (12541) = first tick players can sleep (inclusive)
-        // SUNRISE_TICKS (23458) = last tick of night before dawn (inclusive)
-        if (time < SUNSET_TICKS || time > SUNRISE_TICKS) {
+        // TimeUtil.SUNSET_TICKS (12541) = first tick players can sleep (inclusive)
+        // TimeUtil.SUNRISE_TICKS (23458) = last tick of night before dawn (inclusive)
+        if (time < TimeUtil.SUNSET_TICKS || time > TimeUtil.SUNRISE_TICKS) {
             reset();
             return;
         }
         
         world.setTime(0);
-        
+
         WorldSettings settings = configManager.getWorldSettings(world);
         WorldSettings.WeatherSettings weatherSettings = settings == null ? null : settings.weatherSettings();
         if (weatherSettings == null) {
@@ -360,18 +360,20 @@ public class SleepSession {
     }
     
     public int getEffectiveSleepingCount() {
-        Set<UUID> effective = new HashSet<>();
-        effective.addAll(sleepingPlayers);
-        if (voteModule != null && world != null) {
-            String worldName = world.getName();
-            voteModule.getVotes(worldName).forEach(uuid -> {
-                Player p = Bukkit.getPlayer(uuid);
-                if (p != null && p.isOnline() && !sleepingPlayers.contains(uuid)) {
-                    effective.add(uuid);
-                }
-            });
+        int count = sleepingPlayers.size();
+        if (voteModule == null || world == null) {
+            return count;
         }
-        return effective.size();
+        World sessionWorld = this.world;
+        for (UUID uuid : voteModule.getVotes(world.getName())) {
+            if (!sleepingPlayers.contains(uuid)) {
+                Player p = Bukkit.getPlayer(uuid);
+                if (p != null && p.isOnline() && p.getWorld().equals(sessionWorld)) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     private double resolvePercentage(long eligibleCount) {

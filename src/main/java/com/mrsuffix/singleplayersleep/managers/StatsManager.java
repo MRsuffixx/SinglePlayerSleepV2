@@ -31,9 +31,11 @@ public class StatsManager {
         public String name;
         public int timesSlept;
         public int nightsContributedTo;
-        
+        public long lastSeen;
+
         public PlayerStats(String name) {
             this.name = name;
+            this.lastSeen = System.currentTimeMillis();
         }
     }
     
@@ -172,6 +174,7 @@ public class StatsManager {
             statsConfig.set(path + ".name", ps.name);
             statsConfig.set(path + ".times-slept", ps.timesSlept);
             statsConfig.set(path + ".nights-contributed", ps.nightsContributedTo);
+            statsConfig.set(path + ".last-seen", ps.lastSeen);
         }
         try {
             saveConfig();
@@ -210,6 +213,7 @@ public class StatsManager {
                                 statsConfig.getString(path + ".name", "Unknown"));
                         ps.timesSlept = statsConfig.getInt(path + ".times-slept", 0);
                         ps.nightsContributedTo = statsConfig.getInt(path + ".nights-contributed", 0);
+                        ps.lastSeen = statsConfig.getLong(path + ".last-seen", 0L);
                         playerData.put(uuid, ps);
                     } catch (IllegalArgumentException e) {
                         plugin.getLogger().warning("Invalid UUID in stats.yml: " + uuidStr);
@@ -219,11 +223,18 @@ public class StatsManager {
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to load stats.yml: " + e.getMessage());
         }
+        cleanupOldEntries(90); // Clean up entries older than 90 days
         refreshLeaderboards();
     }
     
     private void saveConfig() throws IOException {
         statsConfig.save(statsFile);
+    }
+
+    private void cleanupOldEntries(int maxDays) {
+        if (maxDays <= 0) return;
+        long cutoff = System.currentTimeMillis() - (maxDays * 86400_000L);
+        playerData.entrySet().removeIf(e -> e.getValue().lastSeen < cutoff);
     }
     
     public void reload() {

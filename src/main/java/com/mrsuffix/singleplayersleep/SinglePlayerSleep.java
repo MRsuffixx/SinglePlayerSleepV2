@@ -10,6 +10,7 @@ import com.mrsuffix.singleplayersleep.commands.SleepCommand;
 import com.mrsuffix.singleplayersleep.commands.SpsCommand;
 import com.mrsuffix.singleplayersleep.hooks.PlaceholderHook;
 import com.mrsuffix.singleplayersleep.listeners.AfkListener;
+import com.mrsuffix.singleplayersleep.listeners.PhantomListener;
 import com.mrsuffix.singleplayersleep.listeners.SleepListener;
 import com.mrsuffix.singleplayersleep.listeners.WorldListener;
 import com.mrsuffix.singleplayersleep.modules.*;
@@ -71,11 +72,14 @@ public class SinglePlayerSleep extends JavaPlugin {
         pluginManager.registerEvents(new SleepListener(sleepManager, afkModule), this);
         pluginManager.registerEvents(new AfkListener(afkModule, updateModule, sleepManager, configManager, this), this);
         pluginManager.registerEvents(new WorldListener(sleepManager, cooldownManager, voteModule), this);
+        if (configManager.isPhantomResetOnSkip()) {
+            pluginManager.registerEvents(new PhantomListener(configManager), this);
+        }
 
         configureCommands();
 
         // Centralized task scheduling
-        taskScheduler = new TaskScheduler(this, configManager, afkModule, updateModule, statsManager);
+        taskScheduler = new TaskScheduler(this, configManager, afkModule, updateModule, statsManager, sleepManager);
         taskScheduler.startAll();
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {

@@ -27,5 +27,9 @@ public class PhantomListener implements Listener {
         if (!isPaperServer || event == null) {
             return;
         }
+        if (!configManager.isPhantomResetOnSkip()) {
+            return;
+        }
+        event.setCancelled(true);
     }
 }

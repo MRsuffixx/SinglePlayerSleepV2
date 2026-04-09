@@ -25,16 +25,20 @@ public class PhantomModule {
         if (!configManager.isPhantomResetOnSkip()) {
             return;
         }
+        int count = 0;
         for (Player player : world.getPlayers()) {
             if (player == null) {
                 continue;
             }
             try {
                 player.setStatistic(Statistic.TIME_SINCE_REST, 0);
+                count++;
             } catch (Exception e) {
                 player.getServer().getLogger().warning("Could not reset phantom timer for " + player.getName());
             }
         }
-        messageUtil.broadcastWorld(world, "phantom-reset", Map.of());
+        if (count > 0) {
+            messageUtil.broadcastWorld(world, "phantom-reset", Map.of());
+        }
     }
 }

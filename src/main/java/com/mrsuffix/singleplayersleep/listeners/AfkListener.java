@@ -60,12 +60,9 @@ public class AfkListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
-        // Run on main thread to avoid async Bukkit API access
-        if (!Bukkit.isPrimaryThread()) {
-            Bukkit.getScheduler().runTask(plugin, () -> afkModule.recordActivity(player, AfkModule.ActivityType.CHAT));
-        } else {
-            afkModule.recordActivity(player, AfkModule.ActivityType.CHAT);
-        }
+        // AsyncPlayerChatEvent is always async - dispatch to main thread
+        Bukkit.getScheduler().runTask(plugin,
+            () -> afkModule.recordActivity(player, AfkModule.ActivityType.CHAT));
     }
     
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

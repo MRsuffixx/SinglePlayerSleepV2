@@ -6,6 +6,7 @@ import com.mrsuffix.singleplayersleep.managers.MessageUtil;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.managers.WorldManager;
 import com.mrsuffix.singleplayersleep.modules.*;
+import com.mrsuffix.singleplayersleep.util.TimeUtil;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerBedEnterEvent;
@@ -89,6 +90,17 @@ public class SleepManager {
             session.reset();
         }
     }
+
+    public void cleanupEmptySessions() {
+        sessions.entrySet().removeIf(entry -> {
+            World world = entry.getValue().getWorld();
+            if (world == null || world.getPlayers().isEmpty()) {
+                entry.getValue().reset();
+                return true;
+            }
+            return false;
+        });
+    }
     
     public void onPlayerSleep(PlayerBedEnterEvent event) {
         Player player = event.getPlayer();
@@ -109,7 +121,7 @@ public class SleepManager {
             return;
         }
         
-        if (world.getTime() < 12541) {
+        if (world.getTime() < TimeUtil.SUNSET_TICKS) {
             return;
         }
         

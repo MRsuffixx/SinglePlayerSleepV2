@@ -52,6 +52,7 @@ public class ConfigManager {
     private Set<String> enabledWorlds;
     private WorldMode worldsMode;
     private WorldSettings defaultWorldSettings;
+    private WorldSettings cachedFallbackSettings;
     private final Map<String, WorldSettings> worldOverrides = new HashMap<>();
     private final Map<String, Boolean> worldEnableOverrides = new HashMap<>();
     
@@ -151,6 +152,9 @@ public class ConfigManager {
         List<SleepRule> defaultRules = readRules(worldDefaultsSection, dynamicRules);
         WorldSettings.WeatherSettings defaultWeather = readWeatherSettings(worldDefaultsSection, baseWeather);
         defaultWorldSettings = new WorldSettings(true, defaultPercentage, defaultRules, defaultWeather);
+        cachedFallbackSettings = new WorldSettings(true, sleepPercentage,
+                dynamicRules == null ? List.of() : dynamicRules,
+                new WorldSettings.WeatherSettings(weatherChangeEnabled, clearRain, clearThunder));
 
         worldOverrides.clear();
         worldEnableOverrides.clear();
@@ -281,11 +285,7 @@ public class ConfigManager {
         Boolean overrideEnabled = worldEnableOverrides.get(worldName);
         boolean enabled = overrideEnabled != null ? overrideEnabled : baseEnabled;
         WorldSettings override = worldOverrides.get(worldName);
-        WorldSettings base = defaultWorldSettings == null
-                ? new WorldSettings(true, sleepPercentage,
-                dynamicRules == null ? List.of() : dynamicRules,
-                new WorldSettings.WeatherSettings(weatherChangeEnabled, clearRain, clearThunder))
-                : defaultWorldSettings;
+        WorldSettings base = defaultWorldSettings == null ? cachedFallbackSettings : defaultWorldSettings;
         if (override == null) {
             return new WorldSettings(enabled, base.sleepPercentage(), base.dynamicRules(), base.weatherSettings());
         }

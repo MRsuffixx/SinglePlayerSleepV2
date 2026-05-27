@@ -242,9 +242,12 @@ public class StatsManager {
         }
         try {
             statsConfig = YamlConfiguration.loadConfiguration(statsFile);
-            globalStats.totalNightsSkipped = statsConfig.getInt("global.total-nights-skipped", 0);
-            globalStats.totalSleepEvents = statsConfig.getInt("global.total-sleep-events", 0);
-            globalStats.lastSkipTimestamp = statsConfig.getLong("global.last-skip-timestamp", 0L);
+            if (statsConfig == null) {
+                statsConfig = new YamlConfiguration();
+            }
+            globalStats.totalNightsSkipped.set(statsConfig.getInt("global.total-nights-skipped", 0));
+            globalStats.totalSleepEvents.set(statsConfig.getInt("global.total-sleep-events", 0));
+            globalStats.lastSkipTimestamp.set(statsConfig.getLong("global.last-skip-timestamp", 0L));
             ConfigurationSection players = statsConfig.getConfigurationSection("players");
             if (players != null) {
                 for (String uuidStr : players.getKeys(false)) {

@@ -54,11 +54,11 @@ public class TaskScheduler {
                 afkInterval, afkInterval);
         tasks.add(afkTask);
 
-        // PlaceholderAPI cache refresh task (every second)
+        // PlaceholderAPI cache refresh task (every 10 seconds)
         if (placeholderHook != null) {
             BukkitTask papiTask = Bukkit.getScheduler().runTaskTimer(plugin,
                     placeholderHook::refreshCache,
-                    TickUtil.TICKS_PER_SECOND, TickUtil.TICKS_PER_SECOND);
+                    TickUtil.TICKS_PER_SECOND * 10, TickUtil.TICKS_PER_SECOND * 10);
             tasks.add(papiTask);
         }
         

@@ -10,7 +10,7 @@ sleep:
   delay-ticks: 100 # Ticks to wait after condition is met before skipping (20 ticks = 1 second)
   cooldown-seconds: 60 # Seconds before another sleep event can start in the same world
   skip-target-time: 0 # World time to set after skip (0 = dawn, 1000 = early morning). Range 0-24000.
-  vote-timeout-seconds: 0 # Seconds before a sleep vote expires (0 = never expires, votes persist until player leaves bed or quits)
+  vote-timeout-seconds: 300 # Seconds before a sleep vote expires (0 = never expires, votes persist until player leaves bed or quits)
   clear-weather: true # Legacy: clears rain/thunder after night skip when sleep.weather not set
   weather:
     change-weather: true # If false, skip never changes weather
@@ -48,12 +48,17 @@ messages:
   cooldown-active: "&cPlease wait &f{seconds}s &cbefore sleeping again." # When cooldown is active
   afk-excluded: "&7(AFK players are excluded from the count)" # Info about AFK exclusion
   vote-needed: "&7{current}/{required} players sleeping." # Vote progress in percentage mode
+  sleep-progress: "&7{current}/{required} players sleeping." # Sleep progress in single mode
   phantom-reset: "&7Phantom timers reset for all players." # When phantom timers are reset
   no-permission: "&cYou don't have permission to do that." # Permission denied message
   reload-success: "&aSinglePlayerSleep reloaded successfully." # Successful reload message
   update-available: "&eSinglePlayerSleep update available: &f{version}" # Update notification
   command-sleep-help: "&7Use this command to vote for skipping the night." # /sleep command help
   wrong-world: "&cThis command cannot be used in this world." # Command used in disabled world
+  afk-marked: "&7You manually marked yourself as AFK." # When player manually sets AFK
+  afk-unmarked: "&aYou are no longer AFK." # When player manually unsets AFK
+  debug-enabled: "&7Debug mode: &fENABLED" # Debug enabled message
+  debug-disabled: "&7Debug mode: &fDISABLED" # Debug disabled message
   plugin-enabled: "&aSinglePlayerSleep v{version} enabled." # Plugin startup message
   plugin-disabled: "&cSinglePlayerSleep disabled." # Plugin shutdown message
 

@@ -33,8 +33,8 @@ public class PhantomModule {
             try {
                 player.setStatistic(Statistic.TIME_SINCE_REST, 0);
                 count++;
-            } catch (Exception e) {
-                player.getServer().getLogger().warning("Could not reset phantom timer for " + player.getName());
+            } catch (IllegalArgumentException e) {
+                player.getServer().getLogger().warning("Could not reset phantom timer for " + player.getName() + ": " + e.getMessage());
             }
         }
         if (count > 0) {

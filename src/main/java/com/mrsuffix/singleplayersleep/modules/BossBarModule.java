@@ -28,11 +28,27 @@ public class BossBarModule {
             return;
         }
         String worldName = world.getName();
+
         BossBar bar = activeBars.computeIfAbsent(worldName, k -> {
             BossBar newBar = Bukkit.createBossBar("", BarColor.BLUE, BarStyle.SOLID);
             newBar.setVisible(true);
             return newBar;
         });
+
+        if (bar.getPlayers().isEmpty()) {
+            for (Player player : world.getPlayers()) {
+                if (player != null) {
+                    bar.addPlayer(player);
+                }
+            }
+        } else {
+            bar.getPlayers().removeIf(p -> !p.getWorld().equals(world));
+            for (Player player : world.getPlayers()) {
+                if (player != null && !bar.getPlayers().contains(player)) {
+                    bar.addPlayer(player);
+                }
+            }
+        }
 
         String title = messageUtil.formatRaw("countdown",
                 Map.of("seconds", String.valueOf(remaining)));
@@ -41,7 +57,6 @@ public class BossBarModule {
         double progress = total > 0 ? (double) remaining / total : 0.0;
         bar.setProgress(Math.max(0.0, Math.min(1.0, progress)));
 
-        // Update color based on progress
         if (progress <= 0.33) {
             bar.setColor(BarColor.RED);
         } else if (progress <= 0.66) {
@@ -49,15 +64,6 @@ public class BossBarModule {
         } else {
             bar.setColor(BarColor.BLUE);
         }
-
-        // Sync players in world with boss bar
-        for (Player player : world.getPlayers()) {
-            if (player != null && !bar.getPlayers().contains(player)) {
-                bar.addPlayer(player);
-            }
-        }
-        // Remove players no longer in the world
-        bar.getPlayers().removeIf(p -> !p.getWorld().equals(world));
     }
 
     public void hideCountdown(World world) {

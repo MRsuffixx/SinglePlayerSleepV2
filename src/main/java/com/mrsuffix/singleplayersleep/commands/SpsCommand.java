@@ -100,9 +100,7 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
                 }
                 Player player = (Player) sender;
                 boolean nowAfk = afkModule.toggleManualAfk(player);
-                sender.sendMessage(nowAfk
-                        ? "§7You manually marked yourself as AFK."
-                        : "§aYou are no longer AFK.");
+                sender.sendMessage(messageUtil.format(nowAfk ? "afk-marked" : "afk-unmarked", Map.of()));
                 return true;
             case "version":
                 sender.sendMessage("§b=== SinglePlayerSleep v" + plugin.getDescription().getVersion() + " by mrsuffix ===");
@@ -117,7 +115,7 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
             case "debug":
                 boolean current = configManager.isDebugEnabled();
                 configManager.setDebugOverride(!current);
-                sender.sendMessage("§7Debug mode: §f" + (!current ? "ENABLED" : "DISABLED"));
+                sender.sendMessage(messageUtil.format(current ? "debug-disabled" : "debug-enabled", Map.of()));
                 return true;
             default:
                 sendHelp(sender);

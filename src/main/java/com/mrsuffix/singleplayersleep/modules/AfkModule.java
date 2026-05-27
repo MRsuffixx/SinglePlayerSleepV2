@@ -123,8 +123,8 @@ public class AfkModule {
     }
     
     public void cleanup() {
-        activityState.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
         afkPlayers.removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
+        activityState.keySet().removeIf(uuid -> Bukkit.getPlayer(uuid) == null);
     }
     
     public void scheduledCheck(SleepManager sleepManager) {

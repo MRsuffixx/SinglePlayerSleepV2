@@ -81,7 +81,7 @@ public class SleepCommand implements CommandExecutor {
             int current = sleepManager.getSessionIfExists(world)
                     .map(session -> session.getEffectiveSleepingCount())
                     .orElse(0);
-            messageUtil.send(player, "vote-needed",
+            messageUtil.send(player, "sleep-progress",
                     Map.of("current", String.valueOf(current), "required", "1"));
             return true;
         }

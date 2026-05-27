@@ -28,7 +28,7 @@ public class SleepManager {
     
     private final VoteModule voteModule;
     private final MessageUtil messageUtil;
-    private BossBarModule bossBarModule;
+    private volatile BossBarModule bossBarModule;
     
     private final ConcurrentHashMap<String, SleepSession> sessions = new ConcurrentHashMap<>();
     

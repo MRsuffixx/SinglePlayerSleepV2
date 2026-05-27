@@ -17,8 +17,10 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class StatsManager {
 
@@ -29,7 +31,7 @@ public class StatsManager {
     }
     
     public static class PlayerStats {
-        public String name;
+        public final String name;
         public int timesSlept;
         public int nightsContributedTo;
         public long lastSeen;
@@ -38,12 +40,27 @@ public class StatsManager {
             this.name = name;
             this.lastSeen = System.currentTimeMillis();
         }
+
+        public PlayerStats(String name, int timesSlept, int nightsContributedTo, long lastSeen) {
+            this.name = name;
+            this.timesSlept = timesSlept;
+            this.nightsContributedTo = nightsContributedTo;
+            this.lastSeen = lastSeen;
+        }
     }
     
     public static class GlobalStats {
-        public int totalNightsSkipped;
-        public int totalSleepEvents;
-        public long lastSkipTimestamp;
+        public final AtomicInteger totalNightsSkipped = new AtomicInteger(0);
+        public final AtomicInteger totalSleepEvents = new AtomicInteger(0);
+        public final AtomicLong lastSkipTimestamp = new AtomicLong(0L);
+
+        public GlobalStats() {}
+
+        public GlobalStats(int nights, int events, long timestamp) {
+            totalNightsSkipped.set(nights);
+            totalSleepEvents.set(events);
+            lastSkipTimestamp.set(timestamp);
+        }
     }
     
     private static final PlayerStats UNKNOWN = new PlayerStats("Unknown");
@@ -51,7 +68,7 @@ public class StatsManager {
     private final SinglePlayerSleep plugin;
     private final ConfigManager configManager;
     private final GlobalStats globalStats = new GlobalStats();
-    private final Map<UUID, PlayerStats> playerData = new HashMap<>();
+    private final Map<UUID, PlayerStats> playerData = new ConcurrentHashMap<>();
     private volatile LeaderboardSnapshot leaderboardSnapshot = new LeaderboardSnapshot(List.of(), List.of(), 0L);
     private volatile boolean dirty = false;
     private File statsFile;
@@ -69,7 +86,7 @@ public class StatsManager {
         if (player == null) {
             return;
         }
-        globalStats.totalSleepEvents++;
+        globalStats.totalSleepEvents.incrementAndGet();
         if (configManager.isTrackPerPlayer()) {
             PlayerStats ps = playerData.computeIfAbsent(player.getUniqueId(),
                     k -> new PlayerStats(player.getName()));
@@ -86,8 +103,8 @@ public class StatsManager {
         if (world == null) {
             return;
         }
-        globalStats.totalNightsSkipped++;
-        globalStats.lastSkipTimestamp = System.currentTimeMillis();
+        globalStats.totalNightsSkipped.incrementAndGet();
+        globalStats.lastSkipTimestamp.set(System.currentTimeMillis());
         if (!configManager.isTrackPerPlayer() || sleepers == null) {
             return;
         }
@@ -111,11 +128,19 @@ public class StatsManager {
     }
     
     public PlayerStats getPlayerStats(UUID uuid) {
-        return playerData.getOrDefault(uuid, UNKNOWN);
+        PlayerStats original = playerData.get(uuid);
+        if (original == null) {
+            return UNKNOWN;
+        }
+        return new PlayerStats(original.name, original.timesSlept, original.nightsContributedTo, original.lastSeen);
     }
-    
+
     public GlobalStats getGlobalStats() {
-        return globalStats;
+        return new GlobalStats(
+            globalStats.totalNightsSkipped.get(),
+            globalStats.totalSleepEvents.get(),
+            globalStats.lastSkipTimestamp.get()
+        );
     }
 
     public List<LeaderboardEntry> getTopSleepers(int limit) {
@@ -182,9 +207,9 @@ public class StatsManager {
         if (statsConfig == null || statsFile == null) {
             return;
         }
-        statsConfig.set("global.total-nights-skipped", globalStats.totalNightsSkipped);
-        statsConfig.set("global.total-sleep-events", globalStats.totalSleepEvents);
-        statsConfig.set("global.last-skip-timestamp", globalStats.lastSkipTimestamp);
+        statsConfig.set("global.total-nights-skipped", globalStats.totalNightsSkipped.get());
+        statsConfig.set("global.total-sleep-events", globalStats.totalSleepEvents.get());
+        statsConfig.set("global.last-skip-timestamp", globalStats.lastSkipTimestamp.get());
         for (Map.Entry<UUID, PlayerStats> entry : playerData.entrySet()) {
             String path = "players." + entry.getKey();
             PlayerStats ps = entry.getValue();
@@ -256,9 +281,9 @@ public class StatsManager {
     
     public void reload() {
         playerData.clear();
-        globalStats.totalNightsSkipped = 0;
-        globalStats.totalSleepEvents = 0;
-        globalStats.lastSkipTimestamp = 0;
+        globalStats.totalNightsSkipped.set(0);
+        globalStats.totalSleepEvents.set(0);
+        globalStats.lastSkipTimestamp.set(0L);
         leaderboardSnapshot = new LeaderboardSnapshot(List.of(), List.of(), 0L);
         load();
     }

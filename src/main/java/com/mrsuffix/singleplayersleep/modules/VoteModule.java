@@ -115,6 +115,18 @@ public class VoteModule {
             }
             return false;
         });
+        voteWorlds.entrySet().removeIf(entry -> {
+            UUID uuid = entry.getKey();
+            if (!voteTimestamps.containsKey(uuid)) {
+                String worldName = entry.getValue();
+                Set<UUID> worldVotes = votes.get(worldName);
+                if (worldVotes != null) {
+                    worldVotes.remove(uuid);
+                }
+                return true;
+            }
+            return false;
+        });
     }
     
     public boolean isVoteMode() {

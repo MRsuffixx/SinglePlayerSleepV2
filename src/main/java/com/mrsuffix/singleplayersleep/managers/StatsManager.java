@@ -17,6 +17,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,7 +32,7 @@ public class StatsManager {
     }
     
     public static class PlayerStats {
-        public final String name;
+        public String name;
         public int timesSlept;
         public int nightsContributedTo;
         public long lastSeen;

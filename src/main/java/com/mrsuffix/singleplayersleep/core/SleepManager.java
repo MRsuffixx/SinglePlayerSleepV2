@@ -70,7 +70,7 @@ public class SleepManager {
             new SleepSession(plugin, world, configManager, cooldownManager,
                            afkModule, effectsModule, phantomModule,
                            countdownModule, statsManager, voteModule, messageUtil,
-                           bossBarModule, auditLog, apiManager)
+                           bossBarModule)
         );
     }
 

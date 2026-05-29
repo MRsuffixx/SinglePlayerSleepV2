@@ -145,7 +145,7 @@ public class SpsCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§b=== SinglePlayerSleep Stats ===");
         sender.sendMessage("§7Total nights skipped: §f" + global.totalNightsSkipped);
         sender.sendMessage("§7Total sleep events: §f" + global.totalSleepEvents);
-        long lastSkip = global.lastSkipTimestamp;
+        long lastSkip = global.lastSkipTimestamp.get();
         String lastSkipText = lastSkip <= 0 ? "Never" :
                 new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(lastSkip));
         sender.sendMessage("§7Last skip: §f" + lastSkipText);

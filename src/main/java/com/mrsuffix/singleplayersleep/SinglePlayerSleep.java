@@ -81,8 +81,8 @@ public class SinglePlayerSleep extends JavaPlugin {
 
         HandlerList.unregisterAll(this);
         PluginManager pluginManager = getServer().getPluginManager();
-        pluginManager.registerEvents(new SleepListener(sleepManager, afkModule, auditLog), this);
-        pluginManager.registerEvents(new AfkListener(afkModule, updateModule, sleepManager, configManager, this, auditLog), this);
+        pluginManager.registerEvents(new SleepListener(sleepManager, afkModule), this);
+        pluginManager.registerEvents(new AfkListener(afkModule, updateModule, sleepManager, configManager, this), this);
         pluginManager.registerEvents(new WorldListener(sleepManager, cooldownManager, voteModule), this);
         if (configManager.isPhantomResetOnSkip()) {
             pluginManager.registerEvents(new PhantomListener(configManager), this);
@@ -90,7 +90,7 @@ public class SinglePlayerSleep extends JavaPlugin {
 
         configureCommands();
 
-        taskScheduler = new TaskScheduler(this, configManager, afkModule, updateModule, statsManager, sleepManager, voteModule, auditLog);
+        taskScheduler = new TaskScheduler(this, configManager, afkModule, updateModule, statsManager, sleepManager, voteModule);
 
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             PlaceholderHook placeholderHook = new PlaceholderHook(this, configManager, sleepManager, cooldownManager,
@@ -134,7 +134,7 @@ public class SinglePlayerSleep extends JavaPlugin {
     public void configureCommands() {
         PluginCommand sleepCmd = getCommand(configManager.getSleepCommandName());
         if (sleepCmd != null) {
-            SleepCommand sleepExecutor = new SleepCommand(this, configManager, sleepManager, voteModule, worldManager, cooldownManager, messageUtil, auditLog);
+            SleepCommand sleepExecutor = new SleepCommand(this, configManager, sleepManager, voteModule, worldManager, cooldownManager, messageUtil);
             sleepCmd.setExecutor(sleepExecutor);
             List<String> aliases = configManager.getSleepAliases();
             if (aliases != null && !aliases.isEmpty()) {

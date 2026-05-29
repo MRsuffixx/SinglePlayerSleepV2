@@ -28,11 +28,17 @@ public class ConfigManager {
     
     private boolean afkEnabled;
     private long afkTimeoutMs;
+    private long afkSemiAfkTimeoutMs;
     private boolean excludeAfkFromCount;
     private int afkCheckIntervalTicks;
     private boolean afkIndicatorEnabled;
     private String afkIndicatorPrefix;
     private String afkIndicatorSuffix;
+    private boolean afkFarmingPreventionEnabled;
+    private String afkSemiAfkPrefix;
+    private String afkSemiAfkSuffix;
+    private String afkFarmingPrefix;
+    private String afkFarmingSuffix;
     
     private boolean countdownEnabled;
     private int countdownDurationSeconds;
@@ -80,7 +86,9 @@ public class ConfigManager {
     private int voteTimeoutSeconds;
     
     private boolean debugEnabled;
-    
+    private boolean auditLogEnabled;
+    private int auditLogMaxEntries;
+    private boolean apiEnabled;
     private Map<String, String> messages;
     
     public ConfigManager(SinglePlayerSleep plugin) {
@@ -111,17 +119,28 @@ public class ConfigManager {
         afkEnabled = plugin.getConfig().getBoolean("afk.enabled", true);
         int timeoutSeconds = plugin.getConfig().getInt("afk.timeout-seconds", 300);
         afkTimeoutMs = timeoutSeconds * 1000L;
+        int semiAfkTimeoutSeconds = plugin.getConfig().getInt("afk.semi-afk-timeout-seconds", 120);
+        afkSemiAfkTimeoutMs = semiAfkTimeoutSeconds * 1000L;
         excludeAfkFromCount = plugin.getConfig().getBoolean("afk.exclude-from-count", true);
         afkCheckIntervalTicks = plugin.getConfig().getInt("afk.check-interval-ticks", 200);
+        afkFarmingPreventionEnabled = plugin.getConfig().getBoolean("afk.farming-prevention", true);
         ConfigurationSection afkIndicator = plugin.getConfig().getConfigurationSection("afk.indicator");
         if (afkIndicator != null) {
             afkIndicatorEnabled = afkIndicator.getBoolean("enabled", false);
             afkIndicatorPrefix = afkIndicator.getString("list-prefix", "&7[AFK] ");
             afkIndicatorSuffix = afkIndicator.getString("list-suffix", "");
+            afkSemiAfkPrefix = afkIndicator.getString("semi-afk-prefix", "&e[Semi-AFK] ");
+            afkSemiAfkSuffix = afkIndicator.getString("semi-afk-suffix", "");
+            afkFarmingPrefix = afkIndicator.getString("farming-prefix", "&c[FARMING] ");
+            afkFarmingSuffix = afkIndicator.getString("farming-suffix", "");
         } else {
             afkIndicatorEnabled = false;
             afkIndicatorPrefix = "&7[AFK] ";
             afkIndicatorSuffix = "";
+            afkSemiAfkPrefix = "&e[Semi-AFK] ";
+            afkSemiAfkSuffix = "";
+            afkFarmingPrefix = "&c[FARMING] ";
+            afkFarmingSuffix = "";
         }
         
         countdownEnabled = plugin.getConfig().getBoolean("countdown.enabled", true);
@@ -199,7 +218,12 @@ public class ConfigManager {
         voteTimeoutSeconds = plugin.getConfig().getInt("sleep.vote-timeout-seconds", 0);
         
         debugEnabled = plugin.getConfig().getBoolean("debug.enabled", false);
-        
+
+        auditLogEnabled = plugin.getConfig().getBoolean("audit-log.enabled", true);
+        auditLogMaxEntries = plugin.getConfig().getInt("audit-log.max-entries", 10000);
+
+        apiEnabled = plugin.getConfig().getBoolean("api.enabled", true);
+
         loadMessages();
     }
     
@@ -454,6 +478,50 @@ public class ConfigManager {
     
     public Map<String, String> getMessages() {
         return messages;
+    }
+
+    public long getAfkSemiAfkTimeoutMs() {
+        return afkSemiAfkTimeoutMs;
+    }
+
+    public boolean isAfkFarmingPreventionEnabled() {
+        return afkFarmingPreventionEnabled;
+    }
+
+    public String getAfkFullAfkPrefix() {
+        return afkIndicatorPrefix;
+    }
+
+    public String getAfkFullAfkSuffix() {
+        return afkIndicatorSuffix;
+    }
+
+    public String getAfkSemiAfkPrefix() {
+        return afkSemiAfkPrefix;
+    }
+
+    public String getAfkSemiAfkSuffix() {
+        return afkSemiAfkSuffix;
+    }
+
+    public String getAfkFarmingPrefix() {
+        return afkFarmingPrefix;
+    }
+
+    public String getAfkFarmingSuffix() {
+        return afkFarmingSuffix;
+    }
+
+    public boolean isAuditLogEnabled() {
+        return auditLogEnabled;
+    }
+
+    public int getAuditLogMaxEntries() {
+        return auditLogMaxEntries;
+    }
+
+    public boolean isApiEnabled() {
+        return apiEnabled;
     }
 
     private List<SleepRule> parseRules(List<String> rawRules) {

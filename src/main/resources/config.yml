@@ -1,5 +1,5 @@
 # ════════════════════════════════════════════════════════════════════════════
-# SinglePlayerSleep v2.0.0 Configuration
+# SinglePlayerSleep v2.3.0 Configuration
 # ════════════════════════════════════════════════════════════════════════════
 
 # Sleep behavior settings
@@ -18,16 +18,22 @@ sleep:
     clear-thunder: true # Clear thunder after skip
   auto-save: true # Call world.save() after night skip (async-safe)
 
-# AFK detection settings
+# AFK detection settings (Smart AFK v2)
 afk:
   enabled: true # Enable AFK detection system
-  timeout-seconds: 300 # Players inactive this long are marked as AFK (300 = 5 minutes)
+  timeout-seconds: 300 # Players inactive this long are marked as FULL AFK (300 = 5 minutes)
+  semi-afk-timeout-seconds: 120 # Players inactive this long are marked as SEMI-AFK (120 = 2 minutes)
   exclude-from-count: true # If true, AFK players don't count toward required sleepers
   check-interval-ticks: 200 # How often (in ticks) the AFK checker runs to mark players (200 = 10 seconds)
+  farming-prevention: true # Enable AFK farming detection (suspicious repetitive patterns)
   indicator:
     enabled: false # Show AFK status in player list name
-    list-prefix: "&7[AFK] "
-    list-suffix: ""
+    list-prefix: "&7[AFK] " # Prefix for full AFK players
+    list-suffix: "" # Suffix for full AFK players
+    semi-afk-prefix: "&e[Semi-AFK] " # Prefix for semi-AFK players
+    semi-afk-suffix: "" # Suffix for semi-AFK players
+    farming-prefix: "&c[FARMING] " # Prefix for farming-detected players
+    farming-suffix: "" # Suffix for farming-detected players
 
 # Countdown settings
 countdown:
@@ -126,6 +132,15 @@ stats:
   track-per-player: true # Track individual player statistics
   leaderboard-refresh-seconds: 300 # How often to refresh leaderboard caches
   cleanup-days: 90 # Remove player stats entries older than this many days (0 = never cleanup)
+
+# Audit log settings (for moderation and data analysis)
+audit-log:
+  enabled: true # Enable audit logging
+  max-entries: 10000 # Maximum in-memory log entries to keep
+
+# Developer API settings
+api:
+  enabled: true # Enable API for external plugins to receive sleep events
 
 # Debug settings
 debug:

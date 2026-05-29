@@ -1,8 +1,10 @@
 package com.mrsuffix.singleplayersleep.core;
 
 import com.mrsuffix.singleplayersleep.SinglePlayerSleep;
+import com.mrsuffix.singleplayersleep.api.SleepApiManager;
 import com.mrsuffix.singleplayersleep.managers.ConfigManager;
 import com.mrsuffix.singleplayersleep.managers.MessageUtil;
+import com.mrsuffix.singleplayersleep.managers.SleepAuditLog;
 import com.mrsuffix.singleplayersleep.managers.StatsManager;
 import com.mrsuffix.singleplayersleep.managers.WorldManager;
 import com.mrsuffix.singleplayersleep.modules.*;
@@ -15,7 +17,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class SleepManager {
-    
+
     private final SinglePlayerSleep plugin;
     private final ConfigManager configManager;
     private final CooldownManager cooldownManager;
@@ -25,19 +27,21 @@ public class SleepManager {
     private final CountdownModule countdownModule;
     private final StatsManager statsManager;
     private final WorldManager worldManager;
-    
+
     private final VoteModule voteModule;
     private final MessageUtil messageUtil;
     private volatile BossBarModule bossBarModule;
-    
+    private final SleepAuditLog auditLog;
+    private final SleepApiManager apiManager;
+
     private final ConcurrentHashMap<String, SleepSession> sessions = new ConcurrentHashMap<>();
-    
+
     public SleepManager(SinglePlayerSleep plugin, ConfigManager configManager,
                         CooldownManager cooldownManager, AfkModule afkModule,
                         EffectsModule effectsModule, PhantomModule phantomModule,
                         CountdownModule countdownModule, StatsManager statsManager,
                         WorldManager worldManager, VoteModule voteModule,
-                        MessageUtil messageUtil) {
+                        MessageUtil messageUtil, SleepAuditLog auditLog, SleepApiManager apiManager) {
         this.plugin = plugin;
         this.configManager = configManager;
         this.cooldownManager = cooldownManager;
@@ -49,23 +53,33 @@ public class SleepManager {
         this.worldManager = worldManager;
         this.voteModule = voteModule;
         this.messageUtil = messageUtil;
+        this.auditLog = auditLog;
+        this.apiManager = apiManager;
     }
 
     public void setBossBarModule(BossBarModule bossBarModule) {
         this.bossBarModule = bossBarModule;
     }
-    
+
     public SleepSession getSession(World world) {
         if (world == null) {
             return null;
         }
-        
-        return sessions.computeIfAbsent(world.getName(), k -> 
+
+        return sessions.computeIfAbsent(world.getName(), k ->
             new SleepSession(plugin, world, configManager, cooldownManager,
                            afkModule, effectsModule, phantomModule,
                            countdownModule, statsManager, voteModule, messageUtil,
-                           bossBarModule)
+                           bossBarModule, auditLog, apiManager)
         );
+    }
+
+    public SleepAuditLog getAuditLog() {
+        return auditLog;
+    }
+
+    public SleepApiManager getApiManager() {
+        return apiManager;
     }
     
     public Optional<SleepSession> getSessionIfExists(World world) {
